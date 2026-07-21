@@ -11,6 +11,7 @@ use tauri::{Manager, WindowEvent};
 pub fn run() {
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .on_window_event(|_window, event| {
             // The end user must never be able to close the kiosk (Alt+F4, the
             // hidden window controls). This is the reliable, cross-platform half
@@ -31,6 +32,10 @@ pub fn run() {
             if let Err(error) = kiosk::engage() {
                 // Local-only diagnostics — never transmitted anywhere.
                 eprintln!("warning: kiosk lockdown did not fully engage: {error}");
+            }
+            // Register the hidden F4 hotkey (Home <-> Admin). Also non-fatal.
+            if let Err(error) = kiosk::admin_hotkey::register(app.handle()) {
+                eprintln!("warning: F4 admin hotkey not registered: {error}");
             }
             Ok(())
         })

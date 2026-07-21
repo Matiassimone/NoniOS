@@ -9,6 +9,9 @@
 //! All of it is Windows-only. On a non-Windows dev host every entry point is a
 //! no-op so the crate still builds, lints, and tests there.
 
+// The F4 hotkey uses Tauri's cross-platform global-shortcut plugin (not Win32),
+// so unlike the rest of kiosk/ it is available on the dev host too.
+pub mod admin_hotkey;
 #[cfg(windows)]
 mod keyboard_hook;
 #[cfg(windows)]

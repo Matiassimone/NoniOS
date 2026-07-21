@@ -28,6 +28,9 @@ serde_json = "1"
 # Typed errors for the kiosk lockdown layer. Pinned exact per AGENTS.md
 # (crates touching kiosk/ never use loose semver ranges).
 thiserror = "=2.0.19"
+# F4 admin hotkey (registered in kiosk/admin_hotkey.rs). Pinned exact per
+# AGENTS.md (crates touching kiosk/ never use loose semver ranges).
+tauri-plugin-global-shortcut = "=2.3.2"
 
 # Win32 lockdown bindings — only compiled on Windows. Kept out of the dev-host
 # (macOS/Linux) build entirely so the crate still builds and lints there.
