@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(rm -r*)",
+      "Bash(rm -fr*)",
+      "Bash(sudo *)",
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git rebase *)",
+      "Bash(git commit --amend*)",
+      "Bash(git filter-branch*)",
+      "Bash(git filter-repo*)",
+      "Bash(git clean *)",
+      "Bash(git branch -D *)",
+      "Bash(git stash drop*)",
+      "Bash(git stash clear*)",
+      "Bash(git reflog expire*)",
+      "Bash(git gc*)",
+      "Bash(git update-ref -d*)",
+      "Bash(docker volume rm*)",
+      "Bash(docker volume prune*)",
+      "Bash(docker system prune*)",
+      "Bash(*prisma migrate reset*)",
+      "Bash(*--force-reset*)",
+      "Bash(find * -delete*)"
+    ],
+    "ask": [
+      "Bash(rm *)",
+      "Bash(git restore *)",
+      "Bash(docker compose* down*)",
+      "Bash(docker rm *)",
+      "Edit(.npmrc)",
+      "Write(.npmrc)",
+      "Edit(pnpm-workspace.yaml)",
+      "Write(pnpm-workspace.yaml)",
+      "Edit(.env)",
+      "Write(.env)"
+    ]
+  }
+}

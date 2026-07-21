@@ -1,0 +1,29 @@
+# --- Dependencies ---
+node_modules/
+
+# --- Frontend build output (Vite) ---
+dist/
+*.tsbuildinfo
+
+# --- Rust build artifacts (main Tauri binary + watchdog crate) ---
+src-tauri/target/
+watchdog/target/
+
+# --- Environment files (never commit secrets; .env.example is the canonical reference) ---
+.env
+.env.*
+!.env.example
+
+# --- Logs ---
+*.log
+
+# --- Claude Code (personal overrides only; project settings are committed) ---
+.claude/settings.local.json
+
+# --- Editors / IDEs ---
+.idea/
+.vscode/
+
+# --- OS noise ---
+.DS_Store
+Thumbs.db

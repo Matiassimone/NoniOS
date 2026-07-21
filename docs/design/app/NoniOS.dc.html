@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="_ds/nonios-design-system-f591b45a-6987-4524-9757-44a028880937/_ds_bundle.css">
+  <link rel="stylesheet" href="_ds/nonios-design-system-f591b45a-6987-4524-9757-44a028880937/styles.css">
+  <script src="_ds/nonios-design-system-f591b45a-6987-4524-9757-44a028880937/_ds_bundle.js"></script>
+  <script src="./image-slot.js"></script>
+  <style>
+    @keyframes noni-spin { to { transform: rotate(360deg); } }
+    @keyframes noni-breathe { 0%,100% { transform: scale(1); opacity:.85 } 50% { transform: scale(1.05); opacity:1 } }
+    @keyframes noni-fade { from { opacity:0 } to { opacity:1 } }
+    @keyframes noni-rise { from { opacity:0; transform: translateY(22px) scale(.97) } to { opacity:1; transform: none } }
+    @keyframes noni-card-in { from { opacity:0; transform: translateY(16px) } to { opacity:1; transform: none } }
+    image-slot { --image-slot-empty-bg: transparent; }
+  </style>
+</helmet>
+<div style="position:relative;width:1920px;height:1080px;overflow:hidden;background:var(--paper);color:var(--ink);font-family:var(--font-sans);-webkit-user-select:none;user-select:none;">
+
+  <!-- Hidden admin hotspot (top-left corner) — invisible, for maintainer access (also F4) -->
+  <button onClick="{{ openAdmin }}" aria-label="Administración" title="Administración (F4)" style="all:unset;position:absolute;top:0;left:0;width:96px;height:96px;z-index:60;cursor:default;"></button>
+
+  <!-- ===================== HOME ===================== -->
+  <div style="position:absolute;inset:0;display:flex;flex-direction:column;">
+    <!-- Greeting header -->
+    <header style="flex:0 0 auto;padding:64px 96px 0;display:flex;align-items:flex-start;justify-content:space-between;gap:32px;">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="font-size:64px;font-weight:600;letter-spacing:-.02em;line-height:1;white-space:nowrap;">{{ greeting }}, {{ name }}</div>
+        <div style="font-size:32px;color:var(--ink2);font-weight:400;white-space:nowrap;">{{ dayLong }}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:22px;padding:22px 32px;background:var(--surface);border:1px solid var(--border);border-radius:22px;">
+        <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#d9a441" stroke-width="1.7" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4.2" fill="#d9a441" stroke="none"></circle>
+          <line x1="12" y1="2.5" x2="12" y2="5"></line><line x1="12" y1="19" x2="12" y2="21.5"></line>
+          <line x1="2.5" y1="12" x2="5" y2="12"></line><line x1="19" y1="12" x2="21.5" y2="12"></line>
+          <line x1="5.2" y1="5.2" x2="7" y2="7"></line><line x1="17" y1="17" x2="18.8" y2="18.8"></line>
+          <line x1="5.2" y1="18.8" x2="7" y2="17"></line><line x1="17" y1="7" x2="18.8" y2="5.2"></line>
+        </svg>
+        <span style="font-size:52px;font-weight:600;line-height:1;">{{ temp }}°</span>
+      </div>
+    </header>
+
+    <!-- App grid -->
+    <main style="flex:1 1 auto;display:flex;align-items:center;justify-content:center;padding:24px 96px 72px;">
+      <div style="display:flex;flex-wrap:wrap;justify-content:center;align-content:center;gap:52px;max-width:990px;width:100%;">
+        <sc-for list="{{ apps }}" as="app" hint-placeholder-count="2">
+          <button onClick="{{ app.tap }}" aria-label="{{ app.name }}"
+            style="all:unset;box-sizing:border-box;cursor:pointer;width:430px;height:380px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;background:var(--surface);border:1px solid var(--border);border-radius:28px;box-shadow:0 1px 2px rgba(0,0,0,.04);transition:transform .12s ease, box-shadow .16s ease;animation:noni-card-in .45s ease both;"
+            style-hover="box-shadow:0 0 0 3px var(--moss); transform:translateY(-2px)"
+            style-active="transform:scale(.965)">
+            <div style="width:196px;height:196px;border-radius:26px;overflow:hidden;background:var(--tint2);display:flex;align-items:center;justify-content:center;">
+              <image-slot id="{{ app.slot }}" shape="rounded" radius="26" placeholder="{{ app.name }}"></image-slot>
+            </div>
+            <span style="font-size:44px;font-weight:600;letter-spacing:-.01em;">{{ app.name }}</span>
+          </button>
+        </sc-for>
+      </div>
+    </main>
+  </div>
+
+  <!-- ===================== LAUNCHING ===================== -->
+  <sc-if value="{{ isLaunching }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;animation:noni-fade .2s ease both;z-index:20;">
+      <div style="position:relative;width:240px;height:240px;display:flex;align-items:center;justify-content:center;">
+        <svg width="240" height="240" viewBox="0 0 240 240" style="position:absolute;inset:0;animation:noni-spin 1.1s linear infinite;">
+          <circle cx="120" cy="120" r="112" fill="none" stroke="var(--tint)" stroke-width="8"></circle>
+          <circle cx="120" cy="120" r="112" fill="none" stroke="var(--moss)" stroke-width="8" stroke-linecap="round" stroke-dasharray="180 704"></circle>
+        </svg>
+        <div style="width:172px;height:172px;border-radius:26px;overflow:hidden;background:var(--tint2);animation:noni-breathe 1.6s ease-in-out infinite;">
+          <image-slot id="{{ activeSlot }}" shape="rounded" radius="26" placeholder="{{ activeName }}"></image-slot>
+        </div>
+      </div>
+      <div style="font-size:48px;font-weight:600;letter-spacing:-.01em;">Abriendo {{ activeName }}…</div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== IN APP (external, out of launcher) ===================== -->
+  <sc-if value="{{ isInApp }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ onReturn }}" style="position:absolute;inset:0;background:#0b0b0d;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;cursor:pointer;animation:noni-fade .3s ease both;z-index:30;">
+      <div style="width:150px;height:150px;border-radius:24px;overflow:hidden;opacity:.9;">
+        <image-slot id="{{ activeSlot }}" shape="rounded" radius="24" placeholder="{{ activeName }}"></image-slot>
+      </div>
+      <div style="font-size:34px;font-weight:500;color:rgba(255,255,255,.92);">{{ activeName }}</div>
+      <div style="position:absolute;bottom:56px;left:0;right:0;text-align:center;font-size:22px;color:rgba(255,255,255,.4);font-family:var(--default-mono-font-family);letter-spacing:.04em;">tocá la pantalla para volver a casa</div>
+    </div>
+  </sc-if>
+
+  <!-- ===================== RETURNING HOME ===================== -->
+  <sc-if value="{{ isReturning }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:var(--paper);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px;z-index:40;animation:noni-fade .35s ease both;">
+      <div style="animation:noni-rise .6s ease both;">
+        <x-import component-from-global-scope="NoniUI.NoniLogo" from="_ds/nonios-design-system-f591b45a-6987-4524-9757-44a028880937/_ds_bundle.js" size="96" hint-size="96px,96px"></x-import>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:14px;animation:noni-rise .6s ease .12s both;">
+        <div style="font-size:60px;font-weight:600;letter-spacing:-.02em;white-space:nowrap;">Hola de nuevo, {{ name }}</div>
+        <div style="font-size:30px;color:var(--ink2);">Estás en casa</div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1920,&quot;height&quot;:1080},&quot;cardCount&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;2&quot;,&quot;4&quot;],&quot;default&quot;:&quot;2&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Contenido&quot;},&quot;name&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;Noni&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Contenido&quot;},&quot;temp&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:22,&quot;min&quot;:-10,&quot;max&quot;:45,&quot;unit&quot;:&quot;°&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Contenido&quot;},&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;light&quot;,&quot;dark&quot;],&quot;default&quot;:&quot;light&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Apariencia&quot;},&quot;sound&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Apariencia&quot;}}">
+class Component extends DCLogic {
+  state = { view: 'home', activeId: null };
+
+  componentDidMount() {
+    this.applyTheme();
+    this.timers = [];
+    this._key = (e) => { if (e.key === 'F4') { e.preventDefault(); window.location.href = 'NoniOS%20Admin.dc.html'; } };
+    window.addEventListener('keydown', this._key);
+  }
+  componentDidUpdate(prev) {
+    if (prev.props.theme !== this.props.theme) this.applyTheme();
+  }
+  componentWillUnmount() {
+    (this.timers || []).forEach(clearTimeout);
+    if (this._key) window.removeEventListener('keydown', this._key);
+  }
+  applyTheme() {
+    const t = this.props.theme || 'light';
+    try { document.documentElement.setAttribute('data-theme', t); } catch (e) {}
+  }
+
+  audio() {
+    if (this.props.sound === false) return null;
+    try {
+      if (!this._ac) this._ac = new (window.AudioContext || window.webkitAudioContext)();
+      if (this._ac.state === 'suspended') this._ac.resume();
+      return this._ac;
+    } catch (e) { return null; }
+  }
+  tone(freqs, dur, when, gain) {
+    const ac = this.audio(); if (!ac) return;
+    const t0 = ac.currentTime + (when || 0);
+    freqs.forEach(f => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine'; o.frequency.value = f;
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(gain || 0.16, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g).connect(ac.destination);
+      o.start(t0); o.stop(t0 + dur + 0.05);
+    });
+  }
+  playTap() { this.tone([523.25, 784], 0.4); }
+  playHome() { this.tone([392, 587.33], 0.7, 0, 0.12); this.tone([784], 0.9, 0.12, 0.08); }
+
+  timeGreeting() {
+    const h = new Date().getHours();
+    if (h < 12) return 'Buenos días';
+    if (h < 20) return 'Buenas tardes';
+    return 'Buenas noches';
+  }
+  dayLong() {
+    const dias = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+    const meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const d = new Date();
+    const s = `${dias[d.getDay()]} ${d.getDate()} de ${meses[d.getMonth()]}`;
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  onCard(app) {
+    if (this.state.view !== 'home') return;
+    this.playTap();
+    this.setState({ view: 'launching', activeId: app.id });
+    this.timers.push(setTimeout(() => {
+      this.setState({ view: 'inApp' });
+    }, 1800));
+  }
+  onReturn() {
+    if (this.state.view !== 'inApp') return;
+    this.playHome();
+    this.setState({ view: 'returning' });
+    this.timers.push(setTimeout(() => {
+      this.setState({ view: 'home', activeId: null });
+    }, 2000));
+  }
+
+  renderVals() {
+    const ALL = [
+      { id: 'netflix', name: 'Netflix', slot: 'noni-logo-netflix' },
+      { id: 'telefe',  name: 'Telefe',  slot: 'noni-logo-telefe' },
+      { id: 'fotos',   name: 'Fotos',   slot: 'noni-logo-fotos' },
+      { id: 'llamar',  name: 'Llamar',  slot: 'noni-logo-llamar' },
+    ];
+    const count = Number(this.props.cardCount || 2);
+    const apps = ALL.slice(0, count).map(a => ({ ...a, tap: () => this.onCard(a) }));
+    const active = ALL.find(a => a.id === this.state.activeId) || {};
+    const v = this.state.view;
+    return {
+      greeting: this.timeGreeting(),
+      name: this.props.name || 'Noni',
+      dayLong: this.dayLong(),
+      temp: this.props.temp ?? 22,
+      apps,
+      isLaunching: v === 'launching',
+      isInApp: v === 'inApp',
+      isReturning: v === 'returning',
+      activeName: active.name || '',
+      activeSlot: active.slot || 'noni-logo-active',
+      onReturn: () => this.onReturn(),
+      openAdmin: () => { window.location.href = 'NoniOS%20Admin.dc.html'; },
+    };
+  }
+}
+</script>
+</body>
+</html>
