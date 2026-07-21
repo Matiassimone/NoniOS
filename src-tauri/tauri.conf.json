@@ -13,8 +13,17 @@
     "windows": [
       {
         "title": "NoniOS",
-        "width": 1280,
-        "height": 800
+        "width": 1920,
+        "height": 1080,
+        "fullscreen": true,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "resizable": false,
+        "maximizable": false,
+        "minimizable": false,
+        "closable": false,
+        "skipTaskbar": true,
+        "focus": true
       }
     ],
     "security": {
