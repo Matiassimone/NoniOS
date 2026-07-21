@@ -140,3 +140,45 @@ Task scope: Build Order step 2 (kiosk lockdown skeleton) + step 3
 Build Order step 4 — `kiosk/admin_hotkey.rs`: F4 global shortcut wired to a placeholder Admin screen (needs a Home/Admin view toggle in the frontend). Preceded by a brainstorming pass; global-hotkey approach to be chosen (Tauri global-shortcut plugin vs. handling F4 in the existing LL keyboard hook).
 
 ---
+
+## Session Report — Build Order step 4 (F4 admin hotkey)
+
+Task scope: Build Order step 4 — F4 global shortcut → placeholder Admin screen.
+
+### Skills activated this session
+
+| Skill / Plugin    | Moment                      | Result                                                                    |
+| ----------------- | --------------------------- | ------------------------------------------------------------------------- |
+| Ponytail full     | pre-hook every turn         | active                                                                     |
+| security-guidance | pre-tool hook on Write/Edit | active                                                                     |
+| /brainstorming    | before starting step 4      | self-exercise (autonomous run): chose plugin over LL-hook handling; noted in commit |
+| TDD               | non-trivial code            | N/A — registration/toggle is glue; validated by real compile (macOS) + build |
+| /ponytail-review  | before marking complete     | inline — reused existing hook-block-list gap for F4, no new abstraction    |
+
+### What happened
+
+- `kiosk/admin_hotkey.rs`: F4 via `tauri-plugin-global-shortcut`, pulses `admin-hotkey` event; registered in `lib.rs` (non-fatal).
+- `App.tsx`: listens for the event, toggles Home/Admin placeholders inside the scaled canvas.
+- Dep `tauri-plugin-global-shortcut` pinned `=2.3.2`.
+- All gates green (format, lint, cargo fmt, clippy, build) + 8 tests.
+
+### Decisions made
+
+- **Global-shortcut plugin over handling F4 in the LL keyboard hook** — keeps the hook callback trivial (no event emission) and follows Ponytail rung 5 (maintained crate over FFI). Bonus: cross-platform, so macOS clippy fully validates `admin_hotkey.rs`.
+- **`admin_hotkey` is `pub mod` and NOT `#[cfg(windows)]`-gated** — it's the one kiosk file that runs on the dev host.
+- Admin/Home placeholders are temporary and pre-i18n by necessity (Build Order sequences the hotkey at step 4, before i18n at step 7 and real screens at 8-9).
+
+### Manually verified vs. unit tested
+
+- `admin_hotkey.rs` is **compile-verified on macOS** against the real plugin API (a genuine improvement over the Win32 code, which is only cross-compile type-checked). Actual F4 keypress → Admin toggle at runtime is host-testable in principle but was NOT run this session (no interactive display driven); on real Windows it also interacts with the LL hook and should be confirmed there.
+
+### Docs to update
+
+- **CLAUDE.md / AGENTS.md** — none required.
+- **DESIGN.md** — still open: destructive color hex (`--danger`), from step 1.
+
+### Next task
+
+Build Order step 5 — `watchdog/` (separate minimal Rust crate) + the two Scheduled Tasks (main app + watchdog). This is the reliability backbone; it needs a brainstorming pass and can only be truly verified with real reboot / sleep-resume cycles on Windows. The Scheduled Task registration will land as install scripts (`scripts/install/`), likely PowerShell driving `schtasks`/`Register-ScheduledTask`.
+
+---
