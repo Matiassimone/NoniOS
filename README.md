@@ -7,6 +7,8 @@ a computer with a single tap, without ever getting lost.
 
 Built for a grandmother. Open to anyone who has one too.
 
+<img width="128" height="128" alt="128x128" src="https://github.com/user-attachments/assets/147647b1-e5e7-42a3-8393-4c4c57ec395f" />
+
 ---
 
 ## Why
