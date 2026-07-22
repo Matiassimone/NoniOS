@@ -182,3 +182,129 @@ Task scope: Build Order step 4 — F4 global shortcut → placeholder Admin scre
 Build Order step 5 — `watchdog/` (separate minimal Rust crate) + the two Scheduled Tasks (main app + watchdog). This is the reliability backbone; it needs a brainstorming pass and can only be truly verified with real reboot / sleep-resume cycles on Windows. The Scheduled Task registration will land as install scripts (`scripts/install/`), likely PowerShell driving `schtasks`/`Register-ScheduledTask`.
 
 ---
+
+## Session Report — Build Order step 5 (Watchdog + Scheduled Tasks)
+
+Task scope: Build Order step 5 — the `watchdog/` crate + the two reliability
+Scheduled Tasks. Also formalized the `--danger` token in DESIGN.md (user-approved).
+**STOP after this step** (per user): the three reliability pillars must be
+verified on real Windows before building the rest of the app on top.
+
+### Skills activated this session
+
+| Skill / Plugin    | Moment                      | Result                                                                            |
+| ----------------- | --------------------------- | --------------------------------------------------------------------------------- |
+| Ponytail full     | pre-hook every turn         | active                                                                             |
+| security-guidance | pre-tool hook on Write/Edit | active                                                                             |
+| /brainstorming    | before starting step 5      | self-exercise (autonomous run): single-shot vs looping watchdog, detection method, session-0 GUI problem — notes in commit + below |
+| /ponytail-audit   | new module (watchdog/)      | inline — zero deps, std only, single-shot; rejected `sysinfo`/toolhelp in favour of `tasklist` for minimal surface |
+| TDD               | non-trivial code            | yes — pure `nonios_image_present` parse fn is test-first-style, 2 host-runnable tests |
+| /ponytail-review  | before marking complete     | inline — kept the watchdog dependency-free and boring on purpose                  |
+
+### What happened
+
+- `watchdog/` (`nonios-watchdog`): zero-dependency, single-shot check (`tasklist`) + relaunch (`schtasks /Run /TN NoniOS`). 2 unit tests on the parse fn.
+- `scripts/install/`: `Install-NoniOS.ps1` (registers both tasks, idempotent, admin-guarded, parameterised), `Uninstall-NoniOS.ps1`, `README.md`.
+- DESIGN.md: `--danger` / `--danger-hover` added to the color table + a "semantic accents" note; `index.css` comment updated and `--color-danger` utilities exposed.
+- Gates green across the whole repo (frontend + src-tauri + watchdog).
+
+### Decisions made
+
+- **Single-shot watchdog, cadence from Task Scheduler** (not an internal loop) — nothing long-running to hang; the scheduler is the reliable timer.
+- **Detection via `tasklist`, zero deps** — a privileged relauncher should carry no third-party supply-chain surface. Case-insensitive substring match handles `nonios.exe` vs `NoniOS.exe`.
+- **Relaunch via the Scheduled Task**, not by spawning the exe — inherits the task's privilege/session context.
+- **⚠️ Tasks run INTERACTIVE, not SYSTEM/"whether logged on or not"** — a session-0 task hides the visible GUI. This deviates from CLAUDE.md's literal wording; it is the correct kiosk pattern (autologon + logon trigger + watchdog). **Flagged for your review.** If you want the literal SYSTEM behavior, that needs a session-token launcher (CreateProcessAsUser) — more complex and against the "boring" reliability rule; recommend against.
+- **Autologon is out of step-5 scope** — it stores a password (admin-entered, Windows-managed, never in the repo). Documented as a reboot-recovery prerequisite.
+
+### Manually verified vs. unit tested
+
+- **Verified here (macOS):** watchdog fmt/clippy/build + 2 unit tests; windows branch type-checked via `cargo check --target x86_64-pc-windows-gnu`; all repo gates green.
+- **PENDING real Windows:** every runtime behavior — the tasks actually registering/firing, the watchdog actually relaunching, and the kiosk lockdown itself. PowerShell and the Win32 paths cannot run on macOS. See the playbook below.
+
+---
+
+## 🔬 MANUAL VERIFICATION PLAYBOOK — reliability pillars (do this on real Windows)
+
+Everything below requires a real Windows 10/11 machine you can power-cycle. None
+of it could be verified on the macOS dev host. Do it in order.
+
+### 0. Build on Windows
+
+Prereqs: Node 22+, pnpm, Rust stable with the **MSVC** toolchain, VS Build Tools
+(C++), WebView2 runtime (preinstalled on current Windows).
+
+```powershell
+pnpm install
+pnpm tauri build                                   # -> src-tauri\target\release\<app>.exe (+ bundle\ installers)
+cargo build --release --manifest-path watchdog\Cargo.toml   # -> watchdog\target\release\nonios-watchdog.exe
+```
+
+**Confirm the app's exe name** (Test 0a): note the file name produced under
+`src-tauri\target\release\` (expected `NoniOS.exe`). With the app running, open
+another terminal and run `tasklist /FI "IMAGENAME eq nonios.exe"`. If it lists
+the process, the watchdog's case-insensitive `nonios.exe` match is correct. If
+the exe has a different base name, tell me — it's a one-const change in
+`watchdog/src/main.rs`.
+
+> Testing tip — how to quit NoniOS during these tests: Alt+F4 is blocked and
+> there is no close button (by design), and there is no graceful-quit path yet.
+> Use **Ctrl+Alt+Del → Task Manager → End task** on the NoniOS process.
+> ⚠️ Killing it this way does NOT restore the taskbar (no graceful teardown on
+> kill). To get the taskbar back, restart Explorer (Task Manager → Run new task
+> → `explorer.exe`), or just relaunch NoniOS. This is expected and is one reason
+> the watchdog exists.
+
+### 1. Kiosk lockdown (run `NoniOS.exe` directly, BEFORE installing tasks)
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 1a | Launch the app | Fills the whole screen, no title bar / borders, stays on top |
+| 1b | Move mouse to the screen bottom | Windows taskbar does NOT appear (hidden) |
+| 1c | Press the **Win** key | Start menu does NOT open |
+| 1d | Press **Alt+Tab** | Task switcher does NOT appear |
+| 1e | Press **Alt+F4** | NoniOS does NOT close |
+| 1f | Press **Ctrl+Esc** | Start menu does NOT open |
+| 1g | Press **F4** | Toggles to the Admin placeholder (cog + "Admin"); press F4 again → back to Home |
+| 1h | Press **Ctrl+Alt+Del**, and separately **Win+L** | These DO still work — they are kernel Secure Attention Sequences a user-mode hook cannot block. Expected, not a bug. |
+
+If any of 1c–1f let the OS through, the keyboard hook isn't engaging — capture
+what happened and tell me.
+
+### 2. Watchdog + Scheduled Tasks (install the tasks first)
+
+```powershell
+# Elevated PowerShell, from scripts\install\
+.\Install-NoniOS.ps1 -InstallDir 'C:\path\to\the\two\exes'
+Get-ScheduledTask -TaskName 'NoniOS','NoniOS Watchdog'   # confirm both exist
+```
+
+| # | Action | Expected |
+| --- | --- | --- |
+| 2a | With NoniOS running, End-task the NoniOS process | Within ~60s the watchdog relaunches it — NoniOS reappears on its own |
+| 2b | Sleep the machine, then wake it | NoniOS is still in front (or the watchdog restores it within ~60s) |
+| 2c | Reboot (see autologon note below), let it come back up | After logon, the `NoniOS` task launches it automatically |
+| 2d | Check Task Scheduler → Task Scheduler Library → history for both tasks | Watchdog fires ~every minute; `NoniOS` fires at logon |
+
+**Autologon for 2c:** the `NoniOS` task triggers *at logon*. For an unattended
+reboot to recover, enable Windows autologon for the kiosk account (Sysinternals
+**Autologon** or `netplwiz`). Without it, reboot recovery only happens after you
+log in manually (which then fires the trigger). This is the documented
+prerequisite; NoniOS never stores that password.
+
+### 3. Report back
+
+For each row: pass / fail + what you saw. Anything in section 1 failing points at
+the keyboard hook or window flags; anything in section 2 failing points at the
+Scheduled Tasks or the watchdog. I'll fix from there before building step 6+ on
+top of this base.
+
+### Docs to update
+
+- **CLAUDE.md** — consider softening "Run whether user is logged on or not" for the app task to note the interactive-session requirement for the GUI (or confirm the interactive approach). Pending your call after verification.
+- **AGENTS.md / DESIGN.md** — none.
+
+### Next task (BLOCKED until you verify)
+
+Build Order step 6 — `config/local_store.rs` + `lib/config.ts` (Zod schema, local JSON store, first-boot detection). **Not started**, per your instruction to stop after step 5 for real-Windows verification of the reliability pillars.
+
+---
