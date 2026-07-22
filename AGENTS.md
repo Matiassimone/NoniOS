@@ -179,6 +179,8 @@ NoniOS-specific rules, enforced here because they're outside the plugin's generi
 
 Each session targets a single, scoped task completable in ~3 hours — same discipline as Zelvem.
 
+**Branch discipline:** work happens on the current scoped feature branch (e.g. `matiassimone/build-run-one`), commit there as usual. **Never merge into `development` or `main` yourself** — that's a deliberate human checkpoint, not something to automate. `development` only receives a feature branch once its work is reviewed and its gates are green; `main` only receives `development` once a full milestone is verified working end to end on real Windows hardware, including the manual verification steps no automated agent can perform. If you finish a feature branch's scope, say so clearly and stop there — don't reach for `git merge` on your own initiative.
+
 **Start of session:**
 1. State the task and its scope explicitly.
 2. If it could exceed 3 hours, split it and confirm the boundary before starting.
@@ -248,4 +250,4 @@ Each session targets a single, scoped task completable in ~3 hours — same disc
 10. `launchers/netflix.rs` and `launchers/webview_app.rs` — get both launch paths working end to end (Netflix via `targetKind: "aumid"`, Telefe via `targetKind: "url"`).
 11. Home's `launching` → `inApp` → `returning` state machine, driven by real `kiosk/window_watcher.rs` events instead of the prototype's placeholder timers.
 12. Bundled audio assets (`tap.ogg`, `return-home.ogg`) wired into the `launching`/`returning` transitions, replacing the prototype's Web Audio oscillators.
-13. Tauri updater wiring + `develop`/`main` release flow — once there's a stable v1 to actually update to.
+13. Tauri updater wiring + the feature-branch → `development` → `main` release flow — once there's a stable v1 to actually update to.

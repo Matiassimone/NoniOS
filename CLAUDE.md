@@ -264,7 +264,7 @@ Local config, one JSON file per install, no cloud, no cross-install data:
 
 Two independent, redundant layers guarantee NoniOS is always what the end user sees:
 
-1. **Scheduled Task, not a Registry Run key.** Registered with: trigger "At startup" AND "At log on", "Run whether user is logged on or not", "Run with highest privileges", and "If the task fails, restart every 1 minute, up to 3 times." This covers reboot, sleep/resume, and power loss far more reliably than a Run key.
+1. **Scheduled Task, not a Registry Run key.** Registered as an **interactive** task (elevated, for the target end-user account), triggered **"At log on"**, combined with **Windows Autologon** configured for that account so the trigger fires automatically on every reboot without anyone physically signing in. **Not** "Run whether user is logged on or not" — that setting runs the task in a non-interactive session, and a GUI kiosk app registered that way would start with no visible window, which defeats the entire point. Reboot is covered by autologon + the at-logon trigger firing right after; sleep/resume needs no separate trigger since the interactive session simply resumes; the task's own "restart every 1 minute, up to 3 times" retry policy covers a failed launch. This is more reliable than a Registry Run key because of that built-in retry policy, not because of any "always-on background service" property — NoniOS is a foreground GUI app by nature, and the reliability mechanism has to respect that.
 2. **A separate, minimal watchdog binary** (`watchdog/`, its own tiny Rust crate, not part of the main Tauri binary). Runs as its own lightweight Scheduled Task on a short interval (e.g. every 60 seconds), checks whether the NoniOS process is alive, and relaunches it immediately if not.
 
 Both layers are intentionally simple and boring. This is the one part of the codebase where "boring and redundant" beats "elegant and clever."
@@ -399,7 +399,7 @@ Full token system, tap-target sizing, and grid scaling rules live in `docs/desig
 ## Distribution and Updates
 
 - **License:** MIT. Anyone can install, fork, and modify NoniOS.
-- **Branching:** `develop` is active work, `main` is production. A merge/tag on `main` triggers a signed public release.
+- **Branching:** three tiers, not two. Autonomous/iteration work happens on scoped feature branches (e.g. `matiassimone/build-run-one`), each merged into **`development`** once its checkpoint passes the 3 gates — `development` is the ongoing integration branch, not something released from directly. **`main`** only receives a merge from `development` once a full milestone is verified working end to end (including the manual Windows verification steps that can't be automated) — a merge/tag on `main` is what triggers a signed public release build. Nothing skips straight from a feature branch to `main`.
 - **Auto-update:** Tauri's built-in updater plugin, checking the public release manifest on every NoniOS launch (or on a daily timer). Update artifacts are signed; the private signing key is never committed — it lives outside the repo, injected into CI as a secret at release time.
 - **Update safety:** an update must never interrupt the end user mid-use in a way that leaves them looking at anything other than Home. Apply updates on next launch/restart, not by tearing down the running kiosk window.
 - **No install ever phones home.** The updater checks a public, static release manifest — it does not report which version, which OS, or any other identifying information back to a server.
