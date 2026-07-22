@@ -1,0 +1,127 @@
+<#
+.SYNOPSIS
+    Registers the two NoniOS reliability Scheduled Tasks (CLAUDE.md ->
+    Reliability Architecture): the main app and its watchdog.
+
+.DESCRIPTION
+    Two independent safety nets keep NoniOS on screen:
+
+      1. "NoniOS"          — launches the app at logon, elevated, and restarts it
+                             up to 3 times (1 min apart) if it fails.
+      2. "NoniOS Watchdog" — runs the tiny watchdog binary every minute; it
+                             relaunches "NoniOS" whenever the app process is gone
+                             (crash, kill, or after sleep/resume).
+
+    Both tasks run in the INTERACTIVE user session (LogonType Interactive,
+    RunLevel Highest). NoniOS is a visible GUI kiosk, so it CANNOT run as SYSTEM
+    / "whether the user is logged on or not" — that lands in session 0 and the
+    window never appears to the end user. Reboot coverage therefore relies on
+    Windows autologon (configured separately at install time; it involves a
+    password entered by the administrator and stored by Windows, never by
+    NoniOS) so that a reboot auto-logs the kiosk user in, which fires the logon
+    trigger. The every-minute watchdog covers everything else (sleep/resume,
+    crash, process kill).
+
+    Must be run from an elevated PowerShell (Run as administrator).
+
+.PARAMETER InstallDir
+    Folder containing the NoniOS executables. Defaults to the parent of this
+    script's folder (i.e. the install root when scripts/ ships under it).
+
+.PARAMETER NoniosExe
+    Full path to the NoniOS main executable. Defaults to
+    "<InstallDir>\NoniOS.exe".
+
+.PARAMETER WatchdogExe
+    Full path to the watchdog executable. Defaults to
+    "<InstallDir>\nonios-watchdog.exe".
+
+.PARAMETER User
+    The interactive account the kiosk runs as. Defaults to the current user.
+
+.PARAMETER WatchdogIntervalMinutes
+    How often the watchdog checks. Defaults to 1 (the minimum Task Scheduler
+    repetition interval).
+
+.EXAMPLE
+    .\Install-NoniOS.ps1 -InstallDir 'C:\Program Files\NoniOS'
+#>
+[CmdletBinding()]
+param(
+    [string]$InstallDir = (Split-Path -Parent $PSScriptRoot),
+    [string]$NoniosExe,
+    [string]$WatchdogExe,
+    [string]$User = "$env:USERDOMAIN\$env:USERNAME",
+    [int]$WatchdogIntervalMinutes = 1
+)
+
+$ErrorActionPreference = 'Stop'
+
+$MainTaskName = 'NoniOS'
+$WatchdogTaskName = 'NoniOS Watchdog'
+
+function Assert-Administrator {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = New-Object Security.Principal.WindowsPrincipal($identity)
+    if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+        throw 'This script must be run from an elevated PowerShell (Run as administrator).'
+    }
+}
+
+if (-not $NoniosExe) { $NoniosExe = Join-Path $InstallDir 'NoniOS.exe' }
+if (-not $WatchdogExe) { $WatchdogExe = Join-Path $InstallDir 'nonios-watchdog.exe' }
+
+Assert-Administrator
+
+if (-not (Test-Path -LiteralPath $NoniosExe)) {
+    throw "NoniOS executable not found: $NoniosExe (pass -NoniosExe or -InstallDir)."
+}
+if (-not (Test-Path -LiteralPath $WatchdogExe)) {
+    throw "Watchdog executable not found: $WatchdogExe (pass -WatchdogExe or -InstallDir)."
+}
+
+# Idempotent: remove any previous registration before recreating.
+foreach ($name in @($MainTaskName, $WatchdogTaskName)) {
+    if (Get-ScheduledTask -TaskName $name -ErrorAction SilentlyContinue) {
+        Unregister-ScheduledTask -TaskName $name -Confirm:$false
+    }
+}
+
+# Shared settings: keep NoniOS alive on battery, never time it out, and don't
+# spawn a second instance if a run overlaps.
+$commonSettings = @{
+    StartWhenAvailable        = $true
+    AllowStartIfOnBatteries   = $true
+    DontStopIfGoingOnBatteries = $true
+    ExecutionTimeLimit        = ([TimeSpan]::Zero)   # 0 = no limit
+    MultipleInstances         = 'IgnoreNew'
+}
+
+$principal = New-ScheduledTaskPrincipal -UserId $User -LogonType Interactive -RunLevel Highest
+
+# --- Task 1: the NoniOS app ---
+$mainAction = New-ScheduledTaskAction -Execute $NoniosExe
+$mainTrigger = New-ScheduledTaskTrigger -AtLogOn
+$mainSettings = New-ScheduledTaskSettingsSet @commonSettings `
+    -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
+
+Register-ScheduledTask -TaskName $MainTaskName -Action $mainAction -Trigger $mainTrigger `
+    -Principal $principal -Settings $mainSettings `
+    -Description 'Launches the NoniOS kiosk launcher at logon and restarts it if it fails.' | Out-Null
+
+# --- Task 2: the watchdog (repeats forever at the given interval) ---
+$watchdogAction = New-ScheduledTaskAction -Execute $WatchdogExe
+$watchdogTrigger = New-ScheduledTaskTrigger -AtLogOn
+# Task Scheduler has no native "repeat forever"; borrow a repetition from a
+# throwaway trigger and give it a very long (decade) duration.
+$watchdogTrigger.Repetition = (New-ScheduledTaskTrigger -Once -At (Get-Date) `
+        -RepetitionInterval (New-TimeSpan -Minutes $WatchdogIntervalMinutes) `
+        -RepetitionDuration ([TimeSpan]::FromDays(3650))).Repetition
+$watchdogSettings = New-ScheduledTaskSettingsSet @commonSettings
+
+Register-ScheduledTask -TaskName $WatchdogTaskName -Action $watchdogAction -Trigger $watchdogTrigger `
+    -Principal $principal -Settings $watchdogSettings `
+    -Description 'Relaunches NoniOS every minute if its process is not running.' | Out-Null
+
+Write-Host "Registered Scheduled Tasks '$MainTaskName' and '$WatchdogTaskName' for user '$User'."
+Write-Host "Reboot coverage requires Windows autologon for this account (configured separately)."

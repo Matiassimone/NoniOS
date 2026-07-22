@@ -27,8 +27,8 @@
   --tint2: rgba(63, 93, 66, 0.07);
   --accent-border: rgba(63, 93, 66, 0.25);
 
-  /* Destructive (delete actions). Not specified in DESIGN.md — a desaturated
-     brick red chosen to sit with the earthy palette; pending design sign-off. */
+  /* The only semantic accent besides --moss, reserved for destructive actions
+     (DESIGN.md -> Color tokens). Always reference the token, never the hex. */
   --danger: #a23b2e;
   --danger-hover: #8c3125;
 
@@ -73,7 +73,9 @@
   --color-accent-foreground: var(--ink);
   --color-muted-foreground: var(--muted);
   --color-destructive: var(--danger);
-  --color-destructive-foreground: var(--on-moss);
+  --color-destructive-foreground: var(--paper);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
   --color-border: var(--border);
   --color-input: var(--border);
   --color-ring: var(--moss);

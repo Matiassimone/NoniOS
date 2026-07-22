@@ -38,11 +38,18 @@ implementation. **Do not invent colors or fonts** outside these tokens.
 | `--moss`           | `#3f5d42`             | The single brand accent (CTAs, active)  |
 | `--moss-hover`     | `#344c37`             | Accent hover                            |
 | `--on-moss`        | `#f2f0e9`             | Text/icon on top of moss                |
+| `--danger`         | `#a23b2e`             | Destructive-action accent (delete)      |
+| `--danger-hover`   | `#8c3125`             | Destructive accent hover                |
 | `--border`         | `#dad7cb`             | Card/input borders                      |
 | `--border-soft`    | `#e4e1d6`             | Internal dividers                       |
 | `--tint`           | `rgba(63,93,66,.12)`  | Soft hover/active state                 |
 | `--tint2`          | `rgba(63,93,66,.07)`  | Icon cells, accent blocks               |
 | `--accent-border`  | `rgba(63,93,66,.25)`  | Border on informational blocks          |
+
+> **Semantic accents.** `--moss` is the brand accent; `--danger` (`#a23b2e`,
+> hover `#8c3125`) is the **only other** semantic accent permitted, reserved for
+> destructive actions (e.g. deleting a tile). No other accent color may be
+> introduced. Always reference the token (`var(--danger)`), never the raw hex.
 
 Dark tokens exist (inherited from Zelvem) but **are not exposed** in the product —
 they exist only for internal previews via `:root[data-theme="dark"]`.
