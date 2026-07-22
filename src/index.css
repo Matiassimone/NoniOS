@@ -1,0 +1,109 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* Self-hosted fonts — no runtime network calls (kiosk runs offline). */
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
+
+/*
+ * NoniUI — "Tinta + Musgo".
+ * Light is the only register exposed in the product. The dark values exist for
+ * internal previews only, behind [data-theme='dark'] (see CLAUDE.md / DESIGN.md).
+ */
+
+:root {
+  /* Canonical NoniUI tokens — do not invent colors outside these. */
+  --paper: #f2f0e9;
+  --surface: #fbfaf6;
+  --ink: #14171a;
+  --ink2: #5c584e;
+  --muted: #8a8579;
+  --moss: #3f5d42;
+  --moss-hover: #344c37;
+  --on-moss: #f2f0e9;
+  --border: #dad7cb;
+  --border-soft: #e4e1d6;
+  --tint: rgba(63, 93, 66, 0.12);
+  --tint2: rgba(63, 93, 66, 0.07);
+  --accent-border: rgba(63, 93, 66, 0.25);
+
+  /* The only semantic accent besides --moss, reserved for destructive actions
+     (DESIGN.md -> Color tokens). Always reference the token, never the hex. */
+  --danger: #a23b2e;
+  --danger-hover: #8c3125;
+
+  --font-sans:
+    'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --default-mono-font-family:
+    'Geist Mono Variable', ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
+
+  /* Base radius — buttons/pills 9px (DESIGN.md). */
+  --radius: 9px;
+}
+
+/*
+ * shadcn/ui semantic color names, aliased onto the NoniUI tokens so every
+ * shadcn primitive picks up the Tinta + Musgo palette automatically.
+ */
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink2: var(--ink2);
+  --color-muted: var(--muted);
+  --color-moss: var(--moss);
+  --color-moss-hover: var(--moss-hover);
+  --color-on-moss: var(--on-moss);
+  --color-border-soft: var(--border-soft);
+  --color-tint: var(--tint);
+  --color-tint2: var(--tint2);
+  --color-accent-border: var(--accent-border);
+
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--ink);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--ink);
+  --color-primary: var(--moss);
+  --color-primary-foreground: var(--on-moss);
+  --color-secondary: var(--tint2);
+  --color-secondary-foreground: var(--ink);
+  --color-accent: var(--tint);
+  --color-accent-foreground: var(--ink);
+  --color-muted-foreground: var(--muted);
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: var(--paper);
+  --color-danger: var(--danger);
+  --color-danger-hover: var(--danger-hover);
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--moss);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--default-mono-font-family);
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 5px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    /* The end user never selects text on Home; kiosk UI, not a document. */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+}

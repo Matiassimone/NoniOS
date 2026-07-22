@@ -1,0 +1,24 @@
+[package]
+name = "nonios-watchdog"
+version = "0.1.0"
+description = "NoniOS reliability watchdog — relaunches NoniOS if it stops running"
+authors = ["NoniOS contributors"]
+license = "MIT"
+repository = "https://github.com/nonios/nonios"
+edition = "2021"
+rust-version = "1.77"
+
+# Intentionally has ZERO dependencies. This binary relaunches a privileged
+# process, so its supply-chain surface must be nothing but std (CLAUDE.md ->
+# Reliability Architecture: "boring and redundant beats elegant and clever").
+
+[[bin]]
+name = "nonios-watchdog"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"

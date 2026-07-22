@@ -1,0 +1,17 @@
+# This file holds pnpm's security configuration even though NoniOS is a
+# single-package repo (see AGENTS.md -> Dependency Management). It intentionally
+# declares no `packages:` list — the src/ frontend and the watchdog/ Rust crate
+# are NOT pnpm workspace members; watchdog is a standalone Cargo crate.
+
+# Enforce exact versions on `pnpm add` (no ^ or ~ ever).
+saveExact: true
+
+# Refuse package versions published less than 24h ago — mitigates hijacked
+# releases (malicious versions are usually yanked within hours).
+minimumReleaseAge: 1440
+
+# Allowlist for dependency build scripts. Empty on purpose: every dependency we
+# use ships prebuilt binaries and needs no lifecycle script. Add an entry here
+# (and note it in the session report) only if a dependency genuinely requires
+# building from source.
+onlyBuiltDependencies: []

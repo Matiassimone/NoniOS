@@ -9,6 +9,10 @@ dist/
 src-tauri/target/
 watchdog/target/
 
+# --- Mobile icon sets (NoniOS is Windows-only; `tauri icon` emits these anyway) ---
+src-tauri/icons/android/
+src-tauri/icons/ios/
+
 # --- Environment files (never commit secrets; .env.example is the canonical reference) ---
 .env
 .env.*

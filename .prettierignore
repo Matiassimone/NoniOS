@@ -1,0 +1,19 @@
+# Build output and dependencies
+dist/
+node_modules/
+src-tauri/target/
+watchdog/target/
+pnpm-lock.yaml
+
+# Design reference prototypes (excluded from lint/format per CLAUDE.md)
+docs/
+
+# Human-authored markdown (source-of-truth docs, README, session log) — kept
+# byte-stable; Prettier governs only the code it owns.
+*.md
+
+# Rust side is governed by `cargo fmt`, and Tauri owns its own JSON config.
+src-tauri/
+
+# shadcn primitives are kept exactly as generated — never reformatted in place
+src/components/ui/
