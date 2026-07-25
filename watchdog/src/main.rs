@@ -1,3 +1,7 @@
+// No console window on Windows — the watchdog runs unattended every minute and
+// a flashing console would be visible on the kiosk. Diagnostics go to a log file.
+#![cfg_attr(windows, windows_subsystem = "windows")]
+
 //! NoniOS reliability watchdog.
 //!
 //! One of the two independent safety nets that keep NoniOS on screen (CLAUDE.md
@@ -8,7 +12,9 @@
 //!
 //! Each run: if the NoniOS process is not present, ask the Task Scheduler to
 //! start it (so it launches with the privileges/session its task defines), then
-//! exit. Never panics — a panic here would defeat the safety net.
+//! exit. Never panics — a panic here would defeat the safety net. Every run
+//! appends a line to `%LOCALAPPDATA%\NoniOS\watchdog.log` (local only, never
+//! transmitted) so the reliability chain can be diagnosed on a real machine.
 
 /// Case-insensitive image name of the NoniOS main process. Substring-matched so
 /// it works whether the bundled binary is `nonios.exe` or `NoniOS.exe`.
@@ -25,9 +31,44 @@ fn nonios_image_present(tasklist_stdout: &str) -> bool {
     tasklist_stdout.to_ascii_lowercase().contains(NONIOS_IMAGE)
 }
 
+/// Local-only diagnostics log (`%LOCALAPPDATA%\NoniOS\watchdog.log`). Best-effort
+/// and never transmitted anywhere (no telemetry; AGENTS.md -> Security).
+#[cfg(windows)]
+mod diag {
+    use std::fs::{self, OpenOptions};
+    use std::io::Write;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn log_path() -> Option<PathBuf> {
+        let base = std::env::var_os("LOCALAPPDATA").map(PathBuf::from)?;
+        Some(base.join("NoniOS").join("watchdog.log"))
+    }
+
+    pub fn log(message: &str) {
+        let Some(path) = log_path() else {
+            return;
+        };
+        if let Some(dir) = path.parent() {
+            let _ = fs::create_dir_all(dir);
+        }
+        let epoch = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        if let Ok(mut file) = OpenOptions::new().create(true).append(true).open(&path) {
+            let _ = writeln!(file, "[{epoch}] {message}");
+        }
+    }
+}
+
 #[cfg(windows)]
 fn main() {
+    use std::os::windows::process::CommandExt;
     use std::process::Command;
+
+    // Run child processes without their own console windows either.
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
     // Is NoniOS running? `tasklist` filtered by image name keeps output tiny.
     // If tasklist itself can't run, assume NoniOS is down and relaunch: a
@@ -35,19 +76,32 @@ fn main() {
     // whereas a missed relaunch strands the end user on bare Windows.
     let running = match Command::new("tasklist")
         .args(["/FI", "IMAGENAME eq nonios.exe", "/NH", "/FO", "CSV"])
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
     {
         Ok(output) => nonios_image_present(&String::from_utf8_lossy(&output.stdout)),
-        Err(_) => false,
+        Err(error) => {
+            diag::log(&format!("tasklist failed ({error}); assuming NoniOS down"));
+            false
+        }
     };
 
-    if !running {
-        // Start NoniOS via its Scheduled Task so it inherits that task's
-        // privilege/session context. Errors are non-fatal — the next run
-        // (~60s later) tries again.
-        let _ = Command::new("schtasks")
-            .args(["/Run", "/TN", NONIOS_TASK])
-            .status();
+    if running {
+        diag::log("NoniOS is running; nothing to do");
+        return;
+    }
+
+    // Start NoniOS via its Scheduled Task so it inherits that task's
+    // privilege/session context. Errors are non-fatal — the next run (~60s
+    // later) tries again.
+    diag::log("NoniOS not running; running task 'NoniOS'");
+    match Command::new("schtasks")
+        .args(["/Run", "/TN", NONIOS_TASK])
+        .creation_flags(CREATE_NO_WINDOW)
+        .status()
+    {
+        Ok(status) => diag::log(&format!("schtasks /Run exited with {status}")),
+        Err(error) => diag::log(&format!("schtasks /Run failed to launch: {error}")),
     }
 }
 

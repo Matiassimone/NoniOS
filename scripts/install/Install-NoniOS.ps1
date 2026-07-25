@@ -100,7 +100,10 @@ $commonSettings = @{
 $principal = New-ScheduledTaskPrincipal -UserId $User -LogonType Interactive -RunLevel Highest
 
 # --- Task 1: the NoniOS app ---
-$mainAction = New-ScheduledTaskAction -Execute $NoniosExe
+# Scheduled Tasks default their working directory to %windir%\system32; set it
+# to the install folder so the app resolves anything relative to itself.
+$mainAction = New-ScheduledTaskAction -Execute $NoniosExe `
+    -WorkingDirectory (Split-Path -Parent $NoniosExe)
 $mainTrigger = New-ScheduledTaskTrigger -AtLogOn
 $mainSettings = New-ScheduledTaskSettingsSet @commonSettings `
     -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
@@ -110,7 +113,8 @@ Register-ScheduledTask -TaskName $MainTaskName -Action $mainAction -Trigger $mai
     -Description 'Launches the NoniOS kiosk launcher at logon and restarts it if it fails.' | Out-Null
 
 # --- Task 2: the watchdog (repeats forever at the given interval) ---
-$watchdogAction = New-ScheduledTaskAction -Execute $WatchdogExe
+$watchdogAction = New-ScheduledTaskAction -Execute $WatchdogExe `
+    -WorkingDirectory (Split-Path -Parent $WatchdogExe)
 $watchdogTrigger = New-ScheduledTaskTrigger -AtLogOn
 # Task Scheduler has no native "repeat forever"; borrow a repetition from a
 # throwaway trigger and give it a very long (decade) duration.
