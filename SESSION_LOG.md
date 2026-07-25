@@ -308,3 +308,107 @@ top of this base.
 Build Order step 6 — `config/local_store.rs` + `lib/config.ts` (Zod schema, local JSON store, first-boot detection). **Not started**, per your instruction to stop after step 5 for real-Windows verification of the reliability pillars.
 
 ---
+
+## Session Report — Windows verification round 1 fixes (keyboard hook, escape, watchdog diagnostics)
+
+Scope: fixes/features on the already-built kiosk + reliability base, from the
+user's real-Windows (Hyper-V / Win10) test results. NOT Build Order step 6.
+Priority order followed: (1) escape dead-end + autostart, (2) keyboard hook,
+(3) new features. Autostart switch (feature #2) deferred — see Pending.
+
+### What happened
+
+- **Keyboard hook rewritten to a dedicated thread** (`kiosk/keyboard_hook.rs`). Root cause of Win/Ctrl+Esc/Alt+Tab leaking: a `WH_KEYBOARD_LL` callback only fires while the *installing thread* pumps messages, which the Tauri main thread doesn't guarantee. Alt+F4 only looked blocked because Tauri's `prevent_close()` catches it independently. Now: dedicated thread + `GetMessage` loop, install result reported over a channel, blocks on key-down AND key-up. Type-checked vs. the real `windows` crate.
+- **"Cerrar NoniOS" escape** — `exit_kiosk` Tauri command (disengage lockdown → restore taskbar → `app.exit`) behind a button in a new minimal Admin sidebar. Reached via F4 (focus-independent global hotkey). Solves the admin dead-end and also lets you exit NoniOS during testing without rebooting the VM.
+- **`diag.rs`** — local-only log (`%LOCALAPPDATA%\NoniOS\nonios.log`) recording startup / kiosk-engage / hotkey-register results.
+- **Watchdog diagnostics** — no console flash (`windows_subsystem` + `CREATE_NO_WINDOW`), and a local log (`%LOCALAPPDATA%\NoniOS\watchdog.log`) recording per-run whether NoniOS was seen running and the `schtasks /Run` exit code. Still zero-dependency.
+- **Install script** — both task actions set `-WorkingDirectory` (tasks default to system32; a plausible launch failure).
+- All gates green (frontend + src-tauri + watchdog).
+
+### Decisions made
+
+- Dedicated-thread hook over debugging the main-thread pump — canonical, removes all doubt, and reliability code should be right first time (CLAUDE.md).
+- Escape is a *process exit* (watchdog relaunches if autostart on), not a hide — matches the "deliberate pause" the user described.
+- Diagnosis-first for autostart: I can't reproduce off-Windows, so instead of guessing I instrumented the exact chain. Ruled out the "watchdog relaunches into session 0" hypothesis by confirming both tasks share the interactive `$principal`.
+
+### Pending / deferred
+
+- **Autostart switch (user feature #2)** — DEFERRED: it needs the local config layer (`autostart: boolean`), which is Build Order **step 6** (not yet built). It also should enable/disable both Scheduled Tasks as a pair. Recommend implementing it together with step 6. Flagged so it isn't forgotten.
+- Admin is still a minimal shell (sidebar + escape only); the three real sections are step 8.
+- Copy in Admin is temporary Spanish, pre-i18n (step 7).
+
+### Manually verified vs. unit tested
+
+- Verified here (macOS): all gates; new hook + watchdog windows branches type-checked via `cargo check --target x86_64-pc-windows-gnu`; watchdog parse tests pass.
+- PENDING real Windows: every runtime behavior below.
+
+---
+
+## 🔬 RE-TEST ROUND 2 — what to test and how
+
+Rebuild first (both binaries changed):
+
+```powershell
+pnpm install; pnpm tauri build
+cargo build --release --manifest-path watchdog\Cargo.toml
+```
+
+### A. Keyboard hook (should now block; run NoniOS.exe directly)
+
+| # | Action | Expected NOW |
+| --- | --- | --- |
+| A1 | Win key | Start menu does NOT open |
+| A2 | Ctrl+Esc | Start menu does NOT open |
+| A3 | Alt+Tab | Switcher does NOT appear |
+| A4 | Alt+F4 | Still blocked |
+| A5 | F4 | Toggles Home ↔ Admin |
+
+Then open `%LOCALAPPDATA%\NoniOS\nonios.log` — expect a line
+`kiosk lockdown engaged`. If instead you see `did NOT fully engage: ...`, paste
+that line to me (it carries the exact Win32 error).
+
+### B. Escape from the dead-end (the important one)
+
+| # | Action | Expected |
+| --- | --- | --- |
+| B1 | With NoniOS in front, press **F4** | Admin opens (this is the key question you had pending — F4 is a global hotkey, so it should work even if the window is hogging focus) |
+| B2 | In Admin, click **"Cerrar NoniOS"** | NoniOS exits to the real Windows desktop; the taskbar is back |
+| B3 | (if tasks installed) wait ~60s | The watchdog relaunches NoniOS — confirming the "deliberate pause" behavior |
+
+If B1 fails (F4 doesn't open Admin while trapped), that's important — tell me,
+because the whole escape path depends on it.
+
+### C. Autostart diagnosis (the reliability blocker)
+
+First, **autologon must be configured** for the kiosk account or the logon
+trigger never fires on reboot. Easiest safe way: Sysinternals **Autologon.exe**
+(stores the password as an encrypted LSA secret, not plaintext). Then:
+
+```powershell
+# from an elevated prompt, in scripts\install\
+.\Install-NoniOS.ps1 -InstallDir 'C:\path\to\the\two\exes'
+```
+
+Reboot. After it comes back up, collect these — they will pinpoint the break:
+
+```powershell
+Get-Content $env:LOCALAPPDATA\NoniOS\watchdog.log -Tail 20
+Get-Content $env:LOCALAPPDATA\NoniOS\nonios.log   -Tail 20
+Get-ScheduledTaskInfo -TaskName 'NoniOS'          | Format-List TaskName,LastRunTime,LastTaskResult
+Get-ScheduledTaskInfo -TaskName 'NoniOS Watchdog' | Format-List TaskName,LastRunTime,LastTaskResult
+```
+
+How to read it (send me whatever you get):
+- **Both logs empty after reboot** → the tasks never fired → autologon isn't set up (no logon = no trigger).
+- **watchdog.log says "running task 'NoniOS'" + exit 0, but nonios.log has no new "NoniOS starting"** → the task ran but the app didn't start → check `NoniOS` `LastTaskResult` (path/permission) — likely a fixable task-config issue.
+- **nonios.log shows "NoniOS starting" then "did NOT fully engage"** → app launched, lockdown errored → paste the error.
+- **watchdog.log "schtasks /Run exited with exit status: 1"** → the NoniOS task itself refused to run → task config; send `LastTaskResult`.
+
+Send me the four outputs and I'll know exactly what to fix.
+
+### Next task (still BLOCKED on your verification)
+
+Once autostart + the hook + escape are confirmed: Build Order step 6 (config
+layer), which also unblocks the autostart switch (feature #2). Not started.
+
+---
