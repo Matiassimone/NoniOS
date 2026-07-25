@@ -412,3 +412,106 @@ Once autostart + the hook + escape are confirmed: Build Order step 6 (config
 layer), which also unblocks the autostart switch (feature #2). Not started.
 
 ---
+
+## Session Report — Round-2 diagnosis (old build) + programmatic autologon
+
+Scope: user's round-2 results triage + user priorities (1) confirm build, (2)
+programmatic autologon via LSA, (3) re-verify escape UI. NOT Build Order step 6.
+
+### Key finding: round-2 was tested on an OLD binary
+
+The tell: the user's Admin sidebar had **no "Cerrar NoniOS" button**, but that
+button is unambiguously in the committed source (`src/screens/Admin/Admin.tsx`)
+and `exit_kiosk` is in `lib.rs`. If the current `development` code had been
+built, the button would be there. So the keyboard-hook result ("no change") and
+the missing button both point to the same cause: the `.exe` under test predates
+the round-1 fixes (it was the step-1–5 PR build). **The dedicated-thread hook fix
+was never actually exercised.** Re-test needs a fresh build from `development`
+HEAD. (I can't produce the Windows binary — macOS host, gates only.)
+
+### What happened (this session)
+
+- **Confirmed the old-build diagnosis** by grepping the committed source.
+- **Programmatic autologon** (`kiosk/autologon.rs`): registry values + password as an LSA secret (`LsaStorePrivateData`), never plaintext registry, never logged. CLI subcommands `configure-autologon` (password via stdin) and `disable-autologon`. `Install-NoniOS.ps1` now prompts + configures it (`-SkipAutologon` to opt out); uninstall clears it.
+- Security-sensitive LSA/registry FFI type-checked against the real `windows` crate (windows-gnu), incl. exact error-variant construction.
+- All gates green.
+
+### Decisions made
+
+- **Autologon driven by the installer via a CLI subcommand of the main binary**, password piped on stdin (never argv, never a PowerShell var written to disk). The same `kiosk::autologon` module will later back the Admin autostart switch (feature #2).
+- **LSA secret over plaintext `DefaultPassword` registry value** — matches the user's explicit instruction and Sysinternals' approach.
+
+### Pending / deferred
+
+- **Autostart switch (feature #2)** — still deferred: needs the config layer (`autostart: boolean`, Build Order step 6). The `kiosk::autologon` mechanism it will call now exists.
+- Keyboard-hook fix + escape button are implemented but **unverified at runtime** (round-2 tested the old build).
+
+### Manually verified vs. unit tested
+
+- macOS: all gates; autologon FFI + hook + watchdog windows branches type-checked via windows-gnu; watchdog tests pass.
+- PENDING real Windows (fresh build): keyboard hook, escape button, and the full autologon install cycle. **Autologon writes a real Windows password to the LSA store** — verify it does not appear in any log (`%LOCALAPPDATA%\NoniOS\*.log`) or the registry.
+
+---
+
+## 🔬 RE-TEST ROUND 3 — rebuild first, then test
+
+> ⚠️ Build from the current `development` HEAD. Confirm the new build by checking
+> that Admin's sidebar shows the **"Cerrar NoniOS"** button. If it doesn't,
+> you're still on the old binary — stop and rebuild.
+
+```powershell
+git pull
+pnpm install; pnpm tauri build
+cargo build --release --manifest-path watchdog\Cargo.toml
+```
+
+### A. Keyboard hook (fresh build — this is the real first test of the fix)
+
+Run NoniOS.exe directly. Win / Ctrl+Esc / Alt+Tab should now all do nothing;
+Alt+F4 nothing; F4 toggles Admin. Then check
+`%LOCALAPPDATA%\NoniOS\nonios.log` for `kiosk lockdown engaged` (if it says
+`did NOT fully engage: ...`, paste that line).
+
+### B. Escape from the dead-end
+
+F4 → Admin → the **"Cerrar NoniOS"** button should be visible → click it →
+NoniOS exits to the desktop, taskbar restored. (The autostart *switch* is NOT
+here yet — that's feature #2 / step 6. Only the button.)
+
+### C. Full autologon install cycle (no Sysinternals)
+
+Both exes must be built first (the installer calls NoniOS.exe for autologon).
+
+```powershell
+# elevated, from scripts\install\
+.\Install-NoniOS.ps1 -InstallDir 'C:\path\to\the\two\exes'
+#   -> registers both tasks, then prompts: "Windows password for <user> (enables autologon)"
+```
+
+Verify autologon was set WITHOUT exposing the password:
+```powershell
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v AutoAdminLogon
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v DefaultUserName
+reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" /v DefaultPassword  # EXPECTED: error / not found
+```
+`AutoAdminLogon`=1 and `DefaultUserName` set, but `DefaultPassword` must NOT
+exist (it's an LSA secret, not a registry value). If `DefaultPassword` shows up
+in the registry, that's a security bug — tell me immediately.
+
+Then reboot and collect the four diagnostics (autologon should now make the
+logon trigger fire on its own):
+```powershell
+Get-Content $env:LOCALAPPDATA\NoniOS\watchdog.log -Tail 20
+Get-Content $env:LOCALAPPDATA\NoniOS\nonios.log   -Tail 20
+Get-ScheduledTaskInfo -TaskName 'NoniOS'          | Format-List TaskName,LastRunTime,LastTaskResult
+Get-ScheduledTaskInfo -TaskName 'NoniOS Watchdog' | Format-List TaskName,LastRunTime,LastTaskResult
+```
+Reading guide is in the round-2 report above. Also confirm the password appears
+in NEITHER log. Send me the four outputs + the reg queries.
+
+### Next task (still blocked on your verification)
+
+Build Order step 6 (config layer) — which also unblocks the autostart switch
+(feature #2). Not started.
+
+---
