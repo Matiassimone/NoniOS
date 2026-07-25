@@ -34,16 +34,19 @@ privileges. NoniOS is a **visible GUI kiosk**, so it must run in the interactive
 user session — a SYSTEM/session-0 task would keep the window off the user's
 screen. The tasks therefore use `LogonType Interactive` + `RunLevel Highest`.
 
-Reboot coverage comes from **Windows autologon**: enable autologon for the kiosk
-account (a Windows setting, configured separately — it stores a password in
-Windows, entered by the administrator, never by NoniOS or this repo) so a reboot
-auto-logs the account in, which fires the `NoniOS` logon trigger. The watchdog
-then covers sleep/resume and crashes within a minute.
+Reboot coverage comes from **Windows autologon**, which `Install-NoniOS.ps1`
+configures for you (no separate tool). It prompts for the kiosk account's Windows
+password and hands it to NoniOS on stdin; NoniOS stores it as an **LSA secret**
+(`LsaStorePrivateData`, the same mechanism Sysinternals Autologon uses) and sets
+`AutoAdminLogon` / `DefaultUserName` / `DefaultDomainName` in the registry. The
+password is **never** written to the registry as plaintext, never logged, and
+never leaves the machine. Pass `-SkipAutologon` to skip this step.
+
+`Uninstall-NoniOS.ps1 -NoniosExe <path>` reverses it (clears `AutoAdminLogon` and
+the stored secret).
 
 ## Not handled here
 
-- **Autologon** — configure separately (e.g. `netplwiz` or Sysinternals
-  Autologon). Required for unattended reboot recovery.
 - **AnyDesk unattended access** — set up from the app (Admin → Remote Access),
   not from these scripts.
 - **Taskbar restore** — done at runtime by NoniOS itself when it exits; not a

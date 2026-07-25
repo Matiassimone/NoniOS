@@ -52,7 +52,8 @@ param(
     [string]$NoniosExe,
     [string]$WatchdogExe,
     [string]$User = "$env:USERDOMAIN\$env:USERNAME",
-    [int]$WatchdogIntervalMinutes = 1
+    [int]$WatchdogIntervalMinutes = 1,
+    [switch]$SkipAutologon
 )
 
 $ErrorActionPreference = 'Stop'
@@ -128,4 +129,31 @@ Register-ScheduledTask -TaskName $WatchdogTaskName -Action $watchdogAction -Trig
     -Description 'Relaunches NoniOS every minute if its process is not running.' | Out-Null
 
 Write-Host "Registered Scheduled Tasks '$MainTaskName' and '$WatchdogTaskName' for user '$User'."
-Write-Host "Reboot coverage requires Windows autologon for this account (configured separately)."
+
+# --- Autologon: configure it via NoniOS itself so a reboot recovers unattended.
+# The password is piped to NoniOS on STDIN (never an argument, never this script's
+# variables on disk) and stored by NoniOS only as an LSA secret — never in the
+# registry as plaintext. Pass -SkipAutologon to skip (e.g. autologon already set).
+if ($SkipAutologon) {
+    Write-Host "Skipped autologon setup (-SkipAutologon). Reboot recovery needs it configured."
+}
+else {
+    $parts = $User.Split('\')
+    if ($parts.Count -eq 2) { $domain = $parts[0]; $name = $parts[1] }
+    else { $domain = $env:COMPUTERNAME; $name = $User }
+
+    $secure = Read-Host "Windows password for $User (enables autologon)" -AsSecureString
+    $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    try {
+        $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+        $plain | & $NoniosExe configure-autologon $domain $name
+        if ($LASTEXITCODE -ne 0) {
+            throw "Autologon configuration failed (NoniOS exit code $LASTEXITCODE)."
+        }
+        Write-Host "Autologon enabled for $domain\$name (password stored as an LSA secret)."
+    }
+    finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr)
+        Remove-Variable plain -ErrorAction SilentlyContinue
+    }
+}

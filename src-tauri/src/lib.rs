@@ -21,6 +21,48 @@ fn exit_kiosk(app: AppHandle) {
     app.exit(0);
 }
 
+/// CLI entry point for `nonios configure-autologon <domain> <username>`,
+/// invoked by the installer so autologon is set up by the product itself (no
+/// separate tool). The password is read from stdin — never an argument (which
+/// would be visible in the process list) — and stored only as an LSA secret by
+/// [`kiosk::autologon`]. It is never logged.
+pub fn autologon_cli() {
+    let args: Vec<String> = std::env::args().collect();
+    let domain = args.get(2).map(String::as_str).unwrap_or("");
+    let username = args.get(3).map(String::as_str).unwrap_or("");
+    if username.is_empty() {
+        eprintln!("usage: nonios configure-autologon <domain> <username>  (password on stdin)");
+        std::process::exit(2);
+    }
+
+    let mut password = String::new();
+    if std::io::stdin().read_line(&mut password).is_err() {
+        eprintln!("configure-autologon: failed to read the password from stdin");
+        std::process::exit(1);
+    }
+    let password = password.trim_end_matches(['\r', '\n']);
+
+    match kiosk::autologon::configure(domain, username, password) {
+        Ok(()) => println!("autologon configured for {domain}\\{username}"),
+        Err(error) => {
+            eprintln!("configure-autologon failed: {error}");
+            std::process::exit(1);
+        }
+    }
+}
+
+/// CLI entry point for `nonios disable-autologon` — clears autologon and the
+/// stored password secret. Used by the uninstaller.
+pub fn autologon_disable_cli() {
+    match kiosk::autologon::disable() {
+        Ok(()) => println!("autologon disabled"),
+        Err(error) => {
+            eprintln!("disable-autologon failed: {error}");
+            std::process::exit(1);
+        }
+    }
+}
+
 /// Application entry point shared by the desktop binary (`main.rs`) and the
 /// mobile entry point. This runs on every boot, so it must never panic — a
 /// failed startup exits non-zero so the watchdog / Scheduled Task relaunches

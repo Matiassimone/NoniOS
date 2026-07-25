@@ -6,14 +6,18 @@
 .DESCRIPTION
     Unregisters "NoniOS" and "NoniOS Watchdog". Run from an elevated PowerShell.
 
-    This does NOT restore the Windows taskbar or undo autologon: the taskbar is
-    hidden at runtime by NoniOS itself and is restored when NoniOS exits and
-    calls its own teardown (kiosk::disengage); autologon is a Windows setting the
-    administrator configured separately. After removing the tasks, close NoniOS
-    so it restores the shell, then revert autologon if it was enabled.
+    Pass -NoniosExe to also disable autologon (clears AutoAdminLogon and the
+    stored LSA password secret). Without it, autologon is left as-is.
+
+    This does NOT restore the Windows taskbar: it is hidden at runtime by NoniOS
+    itself and restored when NoniOS exits and calls its own teardown
+    (kiosk::disengage). After removing the tasks, close NoniOS so it restores the
+    shell.
 #>
 [CmdletBinding()]
-param()
+param(
+    [string]$NoniosExe
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -35,4 +39,22 @@ foreach ($name in @('NoniOS', 'NoniOS Watchdog')) {
     else {
         Write-Host "Scheduled Task '$name' was not present."
     }
+}
+
+if ($NoniosExe) {
+    if (Test-Path -LiteralPath $NoniosExe) {
+        & $NoniosExe disable-autologon
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Failed to disable autologon (NoniOS exit code $LASTEXITCODE)."
+        }
+        else {
+            Write-Host "Autologon disabled and password secret cleared."
+        }
+    }
+    else {
+        Write-Warning "NoniOS executable not found at '$NoniosExe'; left autologon unchanged."
+    }
+}
+else {
+    Write-Host "Autologon left unchanged (pass -NoniosExe to disable it)."
 }

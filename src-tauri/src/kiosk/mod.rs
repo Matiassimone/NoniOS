@@ -12,6 +12,9 @@
 // The F4 hotkey uses Tauri's cross-platform global-shortcut plugin (not Win32),
 // so unlike the rest of kiosk/ it is available on the dev host too.
 pub mod admin_hotkey;
+// Autologon is Windows-only but exposes no-op-erroring stubs off Windows so the
+// crate still builds on the dev host.
+pub mod autologon;
 #[cfg(windows)]
 mod keyboard_hook;
 #[cfg(windows)]
