@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react'
 
 import { listen } from '@tauri-apps/api/event'
-import { Cog, Sprout } from 'lucide-react'
+import { Sprout } from 'lucide-react'
 
 import { NoniButton } from '@/components/NoniButton'
 import { ViewportScaler } from '@/components/ViewportScaler'
+import { Admin } from '@/screens/Admin/Admin'
 
 type View = 'home' | 'admin'
 
 /**
- * Temporary scaffold app (Build Order steps 1, 3 & 4). Proves the stack plus the
- * fixed scaled canvas, and wires the hidden F4 hotkey to a Home <-> Admin toggle.
- * The two placeholders below stand in for the real screens (Build Order 8-9) and
- * their copy is not yet routed through i18n (Build Order step 7) — both land
- * before real copy does.
+ * Temporary scaffold app. Proves the stack plus the fixed scaled canvas, and
+ * wires the hidden F4 hotkey to a Home <-> Admin toggle. The Home placeholder
+ * stands in for the real screen (Build Order step 9); Admin is currently the
+ * minimal escape shell (see @/screens/Admin/Admin).
  */
 export default function App() {
   const [view, setView] = useState<View>('home')
@@ -28,7 +28,9 @@ export default function App() {
   }, [])
 
   return (
-    <ViewportScaler>{view === 'home' ? <HomePlaceholder /> : <AdminPlaceholder />}</ViewportScaler>
+    <ViewportScaler>
+      {view === 'home' ? <HomePlaceholder /> : <Admin onBackToHome={() => setView('home')} />}
+    </ViewportScaler>
   )
 }
 
@@ -45,16 +47,6 @@ function HomePlaceholder() {
         <Sprout />
         NoniOS
       </NoniButton>
-    </main>
-  )
-}
-
-function AdminPlaceholder() {
-  return (
-    <main className="flex h-full w-full flex-col items-center justify-center gap-4 bg-surface">
-      <Cog className="size-16 text-moss" />
-      <span className="font-mono text-sm uppercase tracking-[0.13em] text-muted">Admin</span>
-      <span className="text-2xl text-ink2">Press F4 to return</span>
     </main>
   )
 }
