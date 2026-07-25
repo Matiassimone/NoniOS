@@ -194,8 +194,9 @@ The `launching`→`inApp` and `inApp`→`returning` transitions are driven by ev
 ### Admin (hidden, reached only via `F4`)
 
 - Not password-protected by default (see Deployment Model for why this is a correct fit, not an oversight).
-- Sidebar with three sections — **General**, **Tiles**, **Remote Access** — plus a persistent "Back to Home" button (with an "or press F4" hint underneath). This is the only way out and it is never hidden in a submenu.
-- **General:** end user's display name, language toggle (Español/English), weather location search.
+- Sidebar with three sections — **General**, **Tiles**, **Remote Access** — plus two persistent actions at the bottom: **"Back to Home"** (with an "or press F4" hint underneath) and **"Close NoniOS"**. This is the only way out and it is never hidden in a submenu.
+- **"Close NoniOS"** exits the app cleanly (not just minimizes) so the administrator can reach the real Windows desktop for maintenance — e.g. Task Manager, Windows Update, debugging. If "Launch NoniOS automatically" (below) is on, the watchdog will relaunch it after its normal interval — this button is a deliberate pause, not a permanent way to leave kiosk mode; to actually stay closed, turn that toggle off first. It exists because discovering Task Manager via Ctrl+Alt+Del is real friction against a topmost kiosk window even though that key combo is unblockable by OS design — a same-app, in-UI way out beats relying solely on Ctrl+Alt+Del or Alt+F4.
+- **General:** end user's display name, language toggle (Español/English), weather location search, and a **"Launch NoniOS automatically when Windows starts"** toggle. Off makes sense during setup/maintenance sessions; for the end user's actual machine this should be on. Toggling it enables/disables both Scheduled Tasks (the main app's At-Logon task and the watchdog's task) together — there's no state where the watchdog runs but the main app's autostart doesn't, since a watchdog with nothing to restart is meaningless.
 - **Tiles:** the list of Home's tiles, each reorderable with simple up/down arrow buttons (first/last item's arrows dim to indicate they're disabled) — **no drag-and-drop**, it adds interaction complexity this list doesn't need. Each row shows an icon, name, and a small monospace meta line (`App · Netflix.exe` / `Web · example.com`). App-type tiles get a "Re-detect" action (for Netflix specifically, and any other installed-app tile whose launch target needs re-resolving). Edit opens a small modal (label + icon); delete removes immediately. The seeded Netflix/Telefe tiles carry no special protection — deleting or editing them works exactly like any tile the administrator added. An empty state ("No tiles yet" + a large "Add your first tile" button) replaces the list when it's empty, so it never reads as broken.
 - **Remote Access:** shows the AnyDesk unattended-access ID (read-only, with a copy button) and a short reconnect note. **Never shows or asks for the AnyDesk password** — a small callout explicitly states the password is managed in AnyDesk itself, never stored or surfaced by NoniOS.
 - Exiting Admin returns to Home in fullscreen kiosk mode — same "always safe to fall back to Home" guarantee as the rest of the app.
@@ -226,6 +227,7 @@ Local config, one JSON file per install, no cloud, no cross-install data:
 {
   "schemaVersion": 1,
   "user": { "name": "Noni", "locale": "es" },
+  "autostart": true,
   "weather": { "city": "Buenos Aires, Argentina", "lat": -34.6, "lon": -58.4 },
   "tiles": [
     {
