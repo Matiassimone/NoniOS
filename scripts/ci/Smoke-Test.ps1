@@ -98,13 +98,21 @@ try {
 
     # ---- 4. Autologon shape (throwaway password) ---------------------------
     Write-Host '== 4. configure-autologon writes registry + LSA secret, never plaintext'
+    # Some machines (GitHub's runner images among them) already carry a plaintext
+    # DefaultPassword in Winlogon. NoniOS must never ADD or CHANGE one, so compare
+    # against the value present before the call rather than requiring absence.
+    $before = Get-ItemProperty $winlogon
+    $passwordBefore = $before.PSObject.Properties['DefaultPassword']?.Value
+    Write-Host ("DefaultPassword present before: " + [bool]$passwordBefore)
     $throwaway = 'smoke-test-not-a-real-password-' + [guid]::NewGuid().ToString('N')
     $code = Invoke-WithStdin $nonios @('configure-autologon', $env:COMPUTERNAME, $env:USERNAME) $throwaway
     Check 'configure-autologon exit code 0' ($code -eq 0) "exit $code"
     $props = Get-ItemProperty $winlogon
     Check 'AutoAdminLogon = 1' ($props.AutoAdminLogon -eq '1')
     Check "DefaultUserName = $env:USERNAME" ($props.DefaultUserName -eq $env:USERNAME)
-    Check 'DefaultPassword NOT in registry' (-not ($props.PSObject.Properties.Name -contains 'DefaultPassword'))
+    $passwordAfter = $props.PSObject.Properties['DefaultPassword']?.Value
+    Check 'DefaultPassword in registry unchanged by NoniOS' ($passwordAfter -eq $passwordBefore)
+    Check 'throwaway password NOT in registry' ($passwordAfter -ne $throwaway)
     $allLogs = (Get-ChildItem $logDir -Filter '*.log' | Get-Content -Raw) -join "`n"
     Check 'password appears in no NoniOS log' (-not ($allLogs -like "*$throwaway*"))
     $code = Invoke-WithStdin $nonios @('disable-autologon') ''

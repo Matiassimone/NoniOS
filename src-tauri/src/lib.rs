@@ -1,5 +1,7 @@
+pub mod anydesk_setup;
 pub mod config;
 mod diag;
+pub mod installed_apps;
 pub mod kiosk;
 
 use tauri::{AppHandle, Manager, WindowEvent};
@@ -18,6 +20,18 @@ fn get_config(app: AppHandle) -> ConfigEnvelope {
 #[tauri::command]
 fn save_config(app: AppHandle, config: Config) -> Result<(), String> {
     local_store::save(&app, &config).map_err(|error| error.to_string())
+}
+
+/// Start menu apps for the Admin picker and tile re-detection.
+#[tauri::command]
+fn list_installed_apps() -> Result<Vec<installed_apps::InstalledApp>, String> {
+    installed_apps::list().map_err(|error| error.to_string())
+}
+
+/// This machine's AnyDesk ID, or `None` when AnyDesk isn't installed.
+#[tauri::command]
+fn get_anydesk_id() -> Option<String> {
+    anydesk_setup::get_id()
 }
 
 /// Flips both reliability Scheduled Tasks together (see `kiosk::autostart`).
@@ -101,7 +115,9 @@ pub fn run() {
             exit_kiosk,
             get_config,
             save_config,
-            set_autostart
+            set_autostart,
+            list_installed_apps,
+            get_anydesk_id
         ])
         .on_window_event(|_window, event| {
             // The end user must never close the kiosk (Alt+F4, the hidden window

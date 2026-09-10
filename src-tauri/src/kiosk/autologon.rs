@@ -37,7 +37,7 @@ mod imp {
     use std::ffi::c_void;
 
     use windows::core::{PCWSTR, PWSTR};
-    use windows::Win32::Foundation::NTSTATUS;
+    use windows::Win32::Foundation::{NTSTATUS, STATUS_OBJECT_NAME_NOT_FOUND};
     use windows::Win32::Security::Authentication::Identity::{
         LsaClose, LsaNtStatusToWinError, LsaOpenPolicy, LsaStorePrivateData, LSA_HANDLE,
         LSA_OBJECT_ATTRIBUTES, LSA_UNICODE_STRING,
@@ -127,6 +127,11 @@ mod imp {
             }
         };
         let _ = unsafe { LsaClose(handle) };
+        // Clearing a secret that does not exist is already the desired state;
+        // don't fail `disable` (or the uninstaller) over it.
+        if password.is_none() && result == STATUS_OBJECT_NAME_NOT_FOUND {
+            return Ok(());
+        }
         lsa_ok(result)
     }
 
