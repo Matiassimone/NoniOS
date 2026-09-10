@@ -43,9 +43,9 @@ foreach ($name in @('NoniOS', 'NoniOS Watchdog')) {
 
 if ($NoniosExe) {
     if (Test-Path -LiteralPath $NoniosExe) {
-        & $NoniosExe disable-autologon
-        if ($LASTEXITCODE -ne 0) {
-            Write-Warning "Failed to disable autologon (NoniOS exit code $LASTEXITCODE)."
+        $proc = Start-Process -FilePath $NoniosExe -ArgumentList 'disable-autologon' -Wait -PassThru
+        if ($proc.ExitCode -ne 0) {
+            Write-Warning "Failed to disable autologon (NoniOS exit code $($proc.ExitCode))."
         }
         else {
             Write-Host "Autologon disabled and password secret cleared."

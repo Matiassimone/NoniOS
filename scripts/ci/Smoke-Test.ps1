@@ -1,0 +1,124 @@
+<#
+.SYNOPSIS
+    Exercises the NoniOS reliability chain on a Windows machine without a human:
+    start → lockdown log → Scheduled Tasks → watchdog relaunch → autologon
+    registry shape → teardown. Used by CI (windows-latest) and runnable on any
+    test machine from an elevated PowerShell as a pre-flight before the manual
+    round.
+
+.DESCRIPTION
+    Requires NoniOS.exe, nonios-watchdog.exe and install\Install-NoniOS.ps1 /
+    Uninstall-NoniOS.ps1 under -InstallDir (the layout the CI artifact has).
+    Writes a real AutoAdminLogon entry with a throwaway password and removes it
+    again — only run it on a disposable machine or one you administer.
+
+    Exits non-zero on the first failed check; prints PASS/FAIL per check.
+#>
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)] [string]$InstallDir,
+    [int]$StartupWaitSeconds = 12,
+    [int]$WatchdogWaitSeconds = 20
+)
+
+$ErrorActionPreference = 'Stop'
+$nonios = Join-Path $InstallDir 'NoniOS.exe'
+$watchdog = Join-Path $InstallDir 'nonios-watchdog.exe'
+$installScript = Join-Path $InstallDir 'install\Install-NoniOS.ps1'
+$uninstallScript = Join-Path $InstallDir 'install\Uninstall-NoniOS.ps1'
+$logDir = Join-Path $env:LOCALAPPDATA 'NoniOS'
+$noniosLog = Join-Path $logDir 'nonios.log'
+$winlogon = 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon'
+$script:failed = 0
+
+function Check([string]$name, [bool]$ok, [string]$detail = '') {
+    if ($ok) { Write-Host "PASS  $name" }
+    else { Write-Host "FAIL  $name  $detail"; $script:failed++ }
+}
+
+function Get-NoniosProcess { Get-Process -Name 'NoniOS', 'nonios' -ErrorAction SilentlyContinue }
+
+function Stop-Nonios {
+    Get-NoniosProcess | Stop-Process -Force -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 2
+}
+
+# Runs a GUI-subsystem exe with text on stdin and waits for it. PowerShell's
+# `| & exe` does not reliably wait for GUI apps, so use System.Diagnostics.Process.
+function Invoke-WithStdin([string]$exe, [string[]]$arguments, [string]$stdin) {
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName = $exe
+    $psi.Arguments = ($arguments -join ' ')
+    $psi.RedirectStandardInput = $true
+    $psi.UseShellExecute = $false
+    $p = [System.Diagnostics.Process]::Start($psi)
+    $p.StandardInput.WriteLine($stdin)
+    $p.StandardInput.Close()
+    $p.WaitForExit()
+    return $p.ExitCode
+}
+
+foreach ($f in @($nonios, $watchdog, $installScript, $uninstallScript)) {
+    if (-not (Test-Path -LiteralPath $f)) { throw "missing: $f" }
+}
+
+try {
+    # Clean slate.
+    Stop-Nonios
+    if (Test-Path $logDir) { Remove-Item -Recurse -Force $logDir }
+
+    # ---- 1. Startup + lockdown --------------------------------------------
+    Write-Host "== 1. start NoniOS.exe and read $noniosLog"
+    Start-Process -FilePath $nonios -WorkingDirectory $InstallDir | Out-Null
+    Start-Sleep -Seconds $StartupWaitSeconds
+    Check 'process is alive after startup' ([bool](Get-NoniosProcess))
+    $log = if (Test-Path $noniosLog) { Get-Content $noniosLog -Raw } else { '' }
+    Write-Host $log
+    Check 'log has "NoniOS starting"' ($log -match 'NoniOS starting')
+    Check 'log has "kiosk lockdown engaged"' ($log -match 'kiosk lockdown engaged') 'keyboard hook or taskbar failed — see log'
+    Check 'log has "F4 admin hotkey registered"' ($log -match 'F4 admin hotkey registered')
+
+    # ---- 2. Scheduled Tasks -------------------------------------------------
+    Write-Host '== 2. register Scheduled Tasks (no autologon)'
+    & $installScript -InstallDir $InstallDir -SkipAutologon
+    Check "task 'NoniOS' registered" ([bool](Get-ScheduledTask -TaskName 'NoniOS' -ErrorAction SilentlyContinue))
+    Check "task 'NoniOS Watchdog' registered" ([bool](Get-ScheduledTask -TaskName 'NoniOS Watchdog' -ErrorAction SilentlyContinue))
+
+    # ---- 3. Watchdog relaunch ----------------------------------------------
+    Write-Host '== 3. kill NoniOS, run the watchdog once, expect a relaunch'
+    Stop-Nonios
+    Check 'NoniOS is gone after kill' (-not (Get-NoniosProcess))
+    Start-Process -FilePath $watchdog -WorkingDirectory $InstallDir -Wait | Out-Null
+    Start-Sleep -Seconds $WatchdogWaitSeconds
+    $wdLog = Get-Content (Join-Path $logDir 'watchdog.log') -Raw -ErrorAction SilentlyContinue
+    Write-Host $wdLog
+    Check 'watchdog logged the relaunch attempt' ($wdLog -match "running task 'NoniOS'")
+    Check 'NoniOS is running again after the watchdog' ([bool](Get-NoniosProcess)) 'schtasks /Run did not bring it back — check LastTaskResult'
+    Get-ScheduledTaskInfo -TaskName 'NoniOS' | Format-List TaskName, LastRunTime, LastTaskResult | Out-String | Write-Host
+
+    # ---- 4. Autologon shape (throwaway password) ---------------------------
+    Write-Host '== 4. configure-autologon writes registry + LSA secret, never plaintext'
+    $throwaway = 'smoke-test-not-a-real-password-' + [guid]::NewGuid().ToString('N')
+    $code = Invoke-WithStdin $nonios @('configure-autologon', $env:COMPUTERNAME, $env:USERNAME) $throwaway
+    Check 'configure-autologon exit code 0' ($code -eq 0) "exit $code"
+    $props = Get-ItemProperty $winlogon
+    Check 'AutoAdminLogon = 1' ($props.AutoAdminLogon -eq '1')
+    Check "DefaultUserName = $env:USERNAME" ($props.DefaultUserName -eq $env:USERNAME)
+    Check 'DefaultPassword NOT in registry' (-not ($props.PSObject.Properties.Name -contains 'DefaultPassword'))
+    $allLogs = (Get-ChildItem $logDir -Filter '*.log' | Get-Content -Raw) -join "`n"
+    Check 'password appears in no NoniOS log' (-not ($allLogs -like "*$throwaway*"))
+    $code = Invoke-WithStdin $nonios @('disable-autologon') ''
+    Check 'disable-autologon exit code 0' ($code -eq 0) "exit $code"
+    Check 'AutoAdminLogon = 0 after disable' ((Get-ItemProperty $winlogon).AutoAdminLogon -eq '0')
+}
+finally {
+    Write-Host '== teardown'
+    & $uninstallScript -NoniosExe $nonios
+    Stop-Nonios
+}
+
+if ($script:failed -gt 0) {
+    Write-Host "$script:failed check(s) FAILED"
+    exit 1
+}
+Write-Host 'all checks passed'

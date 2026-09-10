@@ -1,0 +1,107 @@
+# Windows CI — the only place NoniOS's Win32 code is compiled with MSVC and run
+# before a human tests it on real hardware. Two jobs:
+#   build : repo gates, clippy/tests on Windows, both release binaries, artifacts.
+#   smoke : downloads the artifacts and exercises the reliability chain on the
+#           runner (start → lockdown log → Scheduled Tasks → watchdog relaunch →
+#           autologon registry shape). It never blocks the artifacts.
+name: windows
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.28.1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            src-tauri -> target
+            watchdog -> target
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Frontend gates
+        run: |
+          pnpm format:check
+          pnpm lint
+          pnpm test
+
+      - name: Rust gates (MSVC)
+        run: |
+          cargo fmt --check --manifest-path src-tauri/Cargo.toml
+          cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
+          cargo test --manifest-path src-tauri/Cargo.toml
+          cargo fmt --check --manifest-path watchdog/Cargo.toml
+          cargo clippy --manifest-path watchdog/Cargo.toml -- -D warnings
+          cargo test --manifest-path watchdog/Cargo.toml
+
+      - name: Build NoniOS (release, NSIS installer)
+        run: pnpm tauri build --bundles nsis
+
+      - name: Build watchdog (release)
+        run: cargo build --release --manifest-path watchdog/Cargo.toml
+
+      - name: Stage artifacts
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path stage | Out-Null
+          $exe = Get-ChildItem src-tauri/target/release -Filter '*.exe' |
+            Where-Object { $_.Name -match '^nonios\.exe$' } | Select-Object -First 1
+          if (-not $exe) { throw 'NoniOS.exe not found under src-tauri/target/release' }
+          Copy-Item $exe.FullName stage/NoniOS.exe
+          Copy-Item watchdog/target/release/nonios-watchdog.exe stage/
+          Copy-Item -Recurse scripts/install stage/install
+          Copy-Item -Recurse scripts/ci stage/ci
+          $installer = Get-ChildItem src-tauri/target/release/bundle/nsis -Filter '*.exe' -ErrorAction SilentlyContinue
+          if ($installer) { Copy-Item $installer.FullName stage/ }
+          Get-ChildItem -Recurse stage | Select-Object FullName, Length
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nonios-windows-${{ github.sha }}
+          path: stage
+          if-no-files-found: error
+
+  smoke:
+    needs: build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: nonios-windows-${{ github.sha }}
+          path: stage
+
+      - name: Reliability smoke test
+        shell: pwsh
+        run: ./stage/ci/Smoke-Test.ps1 -InstallDir (Resolve-Path ./stage)
+
+      - name: Collect NoniOS logs
+        if: always()
+        shell: pwsh
+        run: |
+          $dir = Join-Path $env:LOCALAPPDATA 'NoniOS'
+          if (Test-Path $dir) { Get-ChildItem $dir | ForEach-Object { "----- $($_.Name)"; Get-Content $_.FullName } }
+          else { 'no NoniOS log directory' }

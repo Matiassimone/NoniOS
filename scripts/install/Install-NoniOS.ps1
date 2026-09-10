@@ -146,9 +146,20 @@ else {
     $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
     try {
         $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
-        $plain | & $NoniosExe configure-autologon $domain $name
-        if ($LASTEXITCODE -ne 0) {
-            throw "Autologon configuration failed (NoniOS exit code $LASTEXITCODE)."
+        # NoniOS.exe is a GUI-subsystem binary; `$plain | & exe` would not reliably
+        # wait for it or surface its exit code, so drive it as a Process with
+        # redirected stdin.
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = $NoniosExe
+        $psi.Arguments = "configure-autologon `"$domain`" `"$name`""
+        $psi.RedirectStandardInput = $true
+        $psi.UseShellExecute = $false
+        $proc = [System.Diagnostics.Process]::Start($psi)
+        $proc.StandardInput.WriteLine($plain)
+        $proc.StandardInput.Close()
+        $proc.WaitForExit()
+        if ($proc.ExitCode -ne 0) {
+            throw "Autologon configuration failed (NoniOS exit code $($proc.ExitCode))."
         }
         Write-Host "Autologon enabled for $domain\$name (password stored as an LSA secret)."
     }
