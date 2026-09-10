@@ -5,22 +5,37 @@ import { Sprout } from 'lucide-react'
 
 import { NoniButton } from '@/components/NoniButton'
 import { ViewportScaler } from '@/components/ViewportScaler'
+import { ConfigProvider, useConfig } from '@/hooks/useConfig'
+import { TranslationProvider } from '@/i18n/useTranslation'
 import { Admin } from '@/screens/Admin/Admin'
 
-type View = 'home' | 'admin'
+const View = { HOME: 'home', ADMIN: 'admin' } as const
+type View = (typeof View)[keyof typeof View]
+
+export default function App() {
+  return (
+    <ConfigProvider>
+      <Shell />
+    </ConfigProvider>
+  )
+}
 
 /**
- * Temporary scaffold app. Proves the stack plus the fixed scaled canvas, and
- * wires the hidden F4 hotkey to a Home <-> Admin toggle. The Home placeholder
- * stands in for the real screen (Build Order step 9); Admin is currently the
- * minimal escape shell (see @/screens/Admin/Admin).
+ * Owns the Home <-> Admin switch. The hidden F4 hotkey (emitted by
+ * `kiosk/admin_hotkey.rs`) toggles it; the first boot (no config file yet)
+ * lands in Admin directly (CLAUDE.md -> First Boot). Until the config has
+ * loaded, nothing but the paper background is shown — never a flash of
+ * placeholder content.
  */
-export default function App() {
-  const [view, setView] = useState<View>('home')
+function Shell() {
+  const { config, ready, firstBoot } = useConfig()
+  // `null` = "not toggled yet": derive from firstBoot so no effect is needed.
+  const [chosenView, setView] = useState<View | null>(null)
+  const view = chosenView ?? (firstBoot ? View.ADMIN : View.HOME)
 
   useEffect(() => {
     const pending = listen('admin-hotkey', () => {
-      setView((current) => (current === 'home' ? 'admin' : 'home'))
+      setView((current) => (current === View.HOME ? View.ADMIN : View.HOME))
     })
     return () => {
       pending.then((unlisten) => unlisten())
@@ -28,9 +43,15 @@ export default function App() {
   }, [])
 
   return (
-    <ViewportScaler>
-      {view === 'home' ? <HomePlaceholder /> : <Admin onBackToHome={() => setView('home')} />}
-    </ViewportScaler>
+    <TranslationProvider locale={config.user.locale}>
+      <ViewportScaler>
+        {!ready ? null : view === View.HOME ? (
+          <HomePlaceholder />
+        ) : (
+          <Admin onBackToHome={() => setView(View.HOME)} />
+        )}
+      </ViewportScaler>
+    </TranslationProvider>
   )
 }
 

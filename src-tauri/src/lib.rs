@@ -1,7 +1,31 @@
+pub mod config;
 mod diag;
 pub mod kiosk;
 
 use tauri::{AppHandle, Manager, WindowEvent};
+
+use config::local_store::{self, ConfigEnvelope};
+use config::Config;
+
+/// Returns the local config plus whether this is the first boot (no config file
+/// yet), in which case the frontend opens Admin instead of Home.
+#[tauri::command]
+fn get_config(app: AppHandle) -> ConfigEnvelope {
+    local_store::load(&app)
+}
+
+/// Persists the config the frontend already validated with Zod.
+#[tauri::command]
+fn save_config(app: AppHandle, config: Config) -> Result<(), String> {
+    local_store::save(&app, &config).map_err(|error| error.to_string())
+}
+
+/// Flips both reliability Scheduled Tasks together (see `kiosk::autostart`).
+#[tauri::command]
+fn set_autostart(enabled: bool) -> Result<(), String> {
+    diag::log(&format!("set_autostart({enabled})"));
+    kiosk::autostart::set_enabled(enabled).map_err(|error| error.to_string())
+}
 
 /// Leaves kiosk mode so the administrator can reach the real Windows desktop
 /// (Task Manager, Windows Update, debugging) without fighting the always-on-top
@@ -73,7 +97,12 @@ pub fn run() {
     let result = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![exit_kiosk])
+        .invoke_handler(tauri::generate_handler![
+            exit_kiosk,
+            get_config,
+            save_config,
+            set_autostart
+        ])
         .on_window_event(|_window, event| {
             // The end user must never close the kiosk (Alt+F4, the hidden window
             // controls). Reliable, cross-platform half of Alt+F4 handling; the

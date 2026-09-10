@@ -15,6 +15,8 @@ pub mod admin_hotkey;
 // Autologon is Windows-only but exposes no-op-erroring stubs off Windows so the
 // crate still builds on the dev host.
 pub mod autologon;
+// Scheduled Task toggle; Windows-only body with a dev-host no-op.
+pub mod autostart;
 #[cfg(windows)]
 mod keyboard_hook;
 #[cfg(windows)]
