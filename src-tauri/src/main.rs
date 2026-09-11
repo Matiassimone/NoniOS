@@ -13,6 +13,10 @@ fn main() {
             nonios_lib::autologon_disable_cli();
             return;
         }
+        Some("restore-shell") => {
+            nonios_lib::restore_shell_cli();
+            return;
+        }
         _ => {}
     }
 

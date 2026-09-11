@@ -65,6 +65,17 @@ pub fn disengage() -> Result<(), KioskError> {
     Ok(())
 }
 
+/// Shows the taskbar without touching anything else — for the `restore-shell`
+/// CLI subcommand, run from a process that never engaged the lockdown.
+#[cfg(windows)]
+pub fn restore_shell() {
+    taskbar::show();
+}
+
+/// Dev-host stub — see the Windows [`restore_shell`].
+#[cfg(not(windows))]
+pub fn restore_shell() {}
+
 /// Dev-host stub — NoniOS's kiosk lockdown is Windows-only.
 #[cfg(not(windows))]
 pub fn engage() -> Result<(), KioskError> {

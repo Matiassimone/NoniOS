@@ -9,10 +9,9 @@
     Pass -NoniosExe to also disable autologon (clears AutoAdminLogon and the
     stored LSA password secret). Without it, autologon is left as-is.
 
-    This does NOT restore the Windows taskbar: it is hidden at runtime by NoniOS
-    itself and restored when NoniOS exits and calls its own teardown
-    (kiosk::disengage). After removing the tasks, close NoniOS so it restores the
-    shell.
+    With -NoniosExe it also restores the Windows taskbar (NoniOS hides it at
+    runtime and only a clean exit brings it back; a force-killed NoniOS leaves
+    it hidden).
 #>
 [CmdletBinding()]
 param(
@@ -57,6 +56,9 @@ if ($NoniosExe) {
         else {
             Write-Host "Autologon disabled and password secret cleared."
         }
+        # A force-killed NoniOS leaves the taskbar hidden; bring it back.
+        Start-Process -FilePath $NoniosExe -ArgumentList 'restore-shell' -Wait | Out-Null
+        Write-Host 'Taskbar restored.'
     }
     else {
         Write-Warning "NoniOS executable not found at '$NoniosExe'; left autologon unchanged."

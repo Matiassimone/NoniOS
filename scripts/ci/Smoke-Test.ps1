@@ -144,8 +144,8 @@ try {
 }
 finally {
     Write-Host '== teardown'
-    & $uninstallScript -NoniosExe $nonios
     Stop-Nonios
+    & $uninstallScript -NoniosExe $nonios
 }
 
 if ($script:failed -gt 0) {

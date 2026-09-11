@@ -131,6 +131,15 @@ pub fn autologon_disable_cli() {
     }
 }
 
+/// CLI entry point for `nonios restore-shell` — shows the Windows taskbar again.
+/// NoniOS restores it itself on a clean exit, but a force-killed NoniOS (Task
+/// Manager, the smoke test, a crash without the watchdog relaunching) leaves it
+/// hidden until explorer restarts; the uninstaller and the smoke test call this.
+pub fn restore_shell_cli() {
+    kiosk::restore_shell();
+    println!("taskbar restored");
+}
+
 /// Application entry point shared by the desktop binary (`main.rs`) and the
 /// mobile entry point. This runs on every boot, so it must never panic — a
 /// failed startup exits non-zero so the watchdog / Scheduled Task relaunches
