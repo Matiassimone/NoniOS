@@ -602,3 +602,12 @@ kiosk modes and commercial kiosk software before the manual round.
 ### Next task
 
 Manual round with the new artifact; then merge to `development` (human checkpoint).
+
+### Addendum — wake-password setting
+
+`powercfg` could not show the "Require a password on wakeup" value on Windows 11
+because the setting is marked hidden; the installer now runs
+`powercfg /ATTRIBUTES SUB_NONE 0e796bdb-… -ATTRIB_HIDE` first and addresses the
+setting by GUID (the `CONSOLELOCK` alias is not defined on every build). Run
+`34596609890`: build + smoke green, all checks PASS including the new
+autostart-off, hang-kill path (parser), PasswordLess and lock-screen checks.
