@@ -130,7 +130,7 @@ C:\NoniOS\install\Install-NoniOS.ps1 -InstallDir C:\NoniOS
 ```powershell
 C:\NoniOS\install\Uninstall-NoniOS.ps1 -NoniosExe C:\NoniOS\NoniOS.exe
 ```
-Then F4 → Cerrar NoniOS. Taskbar back, autologon off.
+Taskbar back (restore-shell), tasks removed, autologon off.
 
 ## Report back
 
