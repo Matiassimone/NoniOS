@@ -123,7 +123,7 @@ try {
     # DefaultPassword in Winlogon. NoniOS must never ADD or CHANGE one, so compare
     # against the value present before the call rather than requiring absence.
     $before = Get-ItemProperty $winlogon
-    $passwordBefore = $before.PSObject.Properties['DefaultPassword']?.Value
+    $passwordBefore = $before.PSObject.Properties['DefaultPassword'].Value
     Write-Host ("DefaultPassword present before: " + [bool]$passwordBefore)
     $throwaway = 'smoke-test-not-a-real-password-' + [guid]::NewGuid().ToString('N')
     $code = Invoke-WithStdin $nonios @('configure-autologon', $env:COMPUTERNAME, $env:USERNAME) $throwaway
@@ -133,7 +133,7 @@ try {
     Check "DefaultUserName = $env:USERNAME" ($props.DefaultUserName -eq $env:USERNAME)
     $passwordless = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device' -ErrorAction SilentlyContinue
     Check 'DevicePasswordLessBuildVersion = 0 (Windows Hello requirement off)' ($passwordless.DevicePasswordLessBuildVersion -eq 0)
-    $passwordAfter = $props.PSObject.Properties['DefaultPassword']?.Value
+    $passwordAfter = $props.PSObject.Properties['DefaultPassword'].Value
     Check 'DefaultPassword in registry unchanged by NoniOS' ($passwordAfter -eq $passwordBefore)
     Check 'throwaway password NOT in registry' ($passwordAfter -ne $throwaway)
     $allLogs = (Get-ChildItem $logDir -Filter '*.log' | Get-Content -Raw) -join "`n"
