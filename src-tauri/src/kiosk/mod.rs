@@ -21,6 +21,8 @@ pub mod autostart;
 mod keyboard_hook;
 #[cfg(windows)]
 mod taskbar;
+// Foreground watcher for launched apps; Windows body + dev-host simulation.
+pub mod window_watcher;
 
 use thiserror::Error;
 

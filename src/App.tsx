@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 
 import { listen } from '@tauri-apps/api/event'
-import { Sprout } from 'lucide-react'
 
-import { NoniButton } from '@/components/NoniButton'
 import { ViewportScaler } from '@/components/ViewportScaler'
 import { ConfigProvider, useConfig } from '@/hooks/useConfig'
 import { TranslationProvider } from '@/i18n/useTranslation'
 import { Admin } from '@/screens/Admin/Admin'
+import { Home } from '@/screens/Home/Home'
 
 const View = { HOME: 'home', ADMIN: 'admin' } as const
 type View = (typeof View)[keyof typeof View]
@@ -46,28 +45,11 @@ function Shell() {
     <TranslationProvider locale={config.user.locale}>
       <ViewportScaler>
         {!ready ? null : view === View.HOME ? (
-          <HomePlaceholder />
+          <Home onOpenAdmin={() => setView(View.ADMIN)} />
         ) : (
           <Admin onBackToHome={() => setView(View.HOME)} />
         )}
       </ViewportScaler>
     </TranslationProvider>
-  )
-}
-
-function HomePlaceholder() {
-  return (
-    <main className="flex h-full w-full flex-col items-center justify-center gap-8">
-      <div className="flex flex-col items-center gap-2">
-        <span className="font-mono text-[10px] uppercase tracking-[0.13em] text-muted">
-          Kiosk launcher
-        </span>
-        <h1 className="text-6xl font-semibold text-ink">NoniOS</h1>
-      </div>
-      <NoniButton size="lg">
-        <Sprout />
-        NoniOS
-      </NoniButton>
-    </main>
   )
 }

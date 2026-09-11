@@ -1,0 +1,131 @@
+import { useCallback, useEffect, useReducer, useState } from 'react'
+
+import { NoniLogo } from '@/components/NoniLogo'
+import { useConfig } from '@/hooks/useConfig'
+import { useSound } from '@/hooks/useSound'
+import { useWindowWatcherEvents } from '@/hooks/useWindowWatcherEvents'
+import { useTranslation } from '@/i18n/useTranslation'
+import { TileKind, type Tile } from '@/lib/config'
+import { launchTile, returnHome } from '@/lib/launch'
+
+import { HomeHeader } from './HomeHeader'
+import { InAppBar } from './InAppBar'
+import { TileGrid, TileIcon } from './TileGrid'
+import { HomeView, INITIAL_HOME_STATE, homeReducer } from './homeMachine'
+
+/** How long the "Welcome back" beat stays before Home is shown again. */
+const RETURNING_MS = 2000
+/** Header clock granularity (greeting + date only need minute precision). */
+const CLOCK_MS = 60 * 1000
+
+/**
+ * The end user's screen. Owns the home/launching/inApp/returning machine
+ * (CLAUDE.md -> Screens -> Home); transitions come from the window watcher's
+ * events, the `returning` beat is the only timer here.
+ */
+export function Home({ onOpenAdmin }: { onOpenAdmin: () => void }) {
+  const { t } = useTranslation()
+  const { config } = useConfig()
+  const { playTap, playReturnHome } = useSound()
+  const [state, dispatch] = useReducer(homeReducer, INITIAL_HOME_STATE)
+  const now = useClock()
+
+  const onShown = useCallback(() => dispatch({ type: 'shown' }), [])
+  const onClosed = useCallback(() => dispatch({ type: 'closed' }), [])
+  useWindowWatcherEvents(onShown, onClosed)
+
+  const tap = (tile: Tile) => {
+    if (state.view !== HomeView.HOME) return
+    playTap()
+    dispatch({ type: 'tap', tile })
+    launchTile(tile.id).mapErr(() => dispatch({ type: 'launchFailed' }))
+  }
+
+  // The returning beat: warm tone, then back to the grid.
+  useEffect(() => {
+    if (state.view !== HomeView.RETURNING) return
+    playReturnHome()
+    const timer = window.setTimeout(() => dispatch({ type: 'returnDone' }), RETURNING_MS)
+    return () => window.clearTimeout(timer)
+  }, [state.view, playReturnHome])
+
+  // Leaving Home while something is in front (F4 -> Admin): bring the kiosk back.
+  const busy = state.view === HomeView.LAUNCHING || state.view === HomeView.IN_APP
+  useEffect(() => {
+    if (!busy) return
+    return () => {
+      void returnHome()
+    }
+  }, [busy])
+
+  const name = config.user.name.trim()
+
+  return (
+    <div className="relative flex h-full w-full flex-col bg-paper text-ink">
+      {/* Hidden maintenance hotspot (top-left, 96x96) — also F4. */}
+      <button
+        type="button"
+        aria-label={t('admin.brand.subtitle')}
+        onClick={onOpenAdmin}
+        className="absolute top-0 left-0 z-[60] size-24 cursor-default opacity-0"
+      />
+
+      <HomeHeader now={now} />
+      <TileGrid tiles={config.tiles} onTap={tap} />
+
+      {state.view === HomeView.LAUNCHING && state.active && (
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-12 bg-paper">
+          <div className="relative flex size-[240px] items-center justify-center">
+            <svg
+              width="240"
+              height="240"
+              viewBox="0 0 240 240"
+              className="absolute inset-0 animate-spin [animation-duration:1.1s]"
+            >
+              <circle cx="120" cy="120" r="112" fill="none" stroke="var(--tint)" strokeWidth="8" />
+              <circle
+                cx="120"
+                cy="120"
+                r="112"
+                fill="none"
+                stroke="var(--moss)"
+                strokeWidth="8"
+                strokeLinecap="round"
+                strokeDasharray="180 704"
+              />
+            </svg>
+            <TileIcon tile={state.active} size={172} className="animate-pulse" />
+          </div>
+          <div className="text-[48px] font-semibold tracking-[-0.01em]">
+            {t('home.launching', { app: state.active.name })}
+          </div>
+        </div>
+      )}
+
+      {state.view === HomeView.RETURNING && (
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-10 bg-paper">
+          <NoniLogo size={96} />
+          <div className="flex flex-col items-center gap-3.5">
+            <div className="text-[60px] font-semibold tracking-[-0.02em] whitespace-nowrap">
+              {name ? t('home.returning.title', { name }) : t('home.returning.titleNoName')}
+            </div>
+            <div className="text-[30px] text-ink2">{t('home.returning.subtitle')}</div>
+          </div>
+        </div>
+      )}
+
+      {state.view === HomeView.IN_APP && state.active?.kind === TileKind.WEB && (
+        <InAppBar title={state.active.name} onReturn={() => void returnHome()} />
+      )}
+    </div>
+  )
+}
+
+function useClock(): Date {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), CLOCK_MS)
+    return () => window.clearInterval(timer)
+  }, [])
+  return now
+}

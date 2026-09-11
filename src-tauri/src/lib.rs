@@ -3,8 +3,9 @@ pub mod config;
 mod diag;
 pub mod installed_apps;
 pub mod kiosk;
+pub mod launchers;
 
-use tauri::{AppHandle, Manager, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, WindowEvent};
 
 use config::local_store::{self, ConfigEnvelope};
 use config::Config;
@@ -20,6 +21,35 @@ fn get_config(app: AppHandle) -> ConfigEnvelope {
 #[tauri::command]
 fn save_config(app: AppHandle, config: Config) -> Result<(), String> {
     local_store::save(&app, &config).map_err(|error| error.to_string())
+}
+
+/// Launches the tile with this id (CLAUDE.md -> Architecture Rule 2: the
+/// frontend never builds a shell command itself).
+#[tauri::command]
+fn launch_tile(app: AppHandle, tile_id: String) -> Result<(), String> {
+    let config = local_store::load(&app).config;
+    let tile = config
+        .tiles
+        .iter()
+        .find(|tile| tile.id == tile_id)
+        .ok_or_else(|| format!("unknown tile '{tile_id}'"))?;
+    diag::log(&format!(
+        "launch_tile {tile_id} ({} / {})",
+        tile.kind, tile.target_kind
+    ));
+    launchers::launch(&app, tile).map_err(|error| {
+        diag::log(&format!("launch_tile {tile_id} failed: {error}"));
+        error.to_string()
+    })
+}
+
+/// Brings the kiosk back: closes the external web window if open, stops the
+/// foreground watcher and re-asserts the main window. Used by the "Back to
+/// home" bar and when F4 opens Admin while an app is in front.
+#[tauri::command]
+fn return_home(app: AppHandle) {
+    launchers::webview_app::close(&app);
+    kiosk::window_watcher::cancel(&app);
 }
 
 /// Start menu apps for the Admin picker and tile re-detection.
@@ -117,16 +147,31 @@ pub fn run() {
             save_config,
             set_autostart,
             list_installed_apps,
-            get_anydesk_id
+            get_anydesk_id,
+            launch_tile,
+            return_home
         ])
-        .on_window_event(|_window, event| {
-            // The end user must never close the kiosk (Alt+F4, the hidden window
-            // controls). Reliable, cross-platform half of Alt+F4 handling; the
-            // keyboard hook also swallows the keystroke.
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                if !kiosk::ALLOW_USER_CLOSE {
-                    api.prevent_close();
+        .on_window_event(|window, event| {
+            let is_main = window.label() == "main";
+            match event {
+                // The end user must never close the kiosk (Alt+F4, the hidden
+                // window controls). Reliable, cross-platform half of Alt+F4
+                // handling; the keyboard hook also swallows the keystroke.
+                WindowEvent::CloseRequested { api, .. } if is_main => {
+                    if !kiosk::ALLOW_USER_CLOSE {
+                        api.prevent_close();
+                    }
                 }
+                // The external web window going away — closed from the bar or
+                // crashed — is the "app closed" signal for web tiles.
+                WindowEvent::Destroyed
+                    if window.label() == launchers::webview_app::EXTERNAL_LABEL =>
+                {
+                    let app = window.app_handle().clone();
+                    kiosk::window_watcher::restore_home(&app);
+                    let _ = app.emit(kiosk::window_watcher::CLOSED_EVENT, ());
+                }
+                _ => {}
             }
         })
         .setup(|app| {
