@@ -83,7 +83,8 @@ try {
     & $installScript -InstallDir $InstallDir -SkipAutologon
     Check "task 'NoniOS' registered" ([bool](Get-ScheduledTask -TaskName 'NoniOS' -ErrorAction SilentlyContinue))
     Check "task 'NoniOS Watchdog' registered" ([bool](Get-ScheduledTask -TaskName 'NoniOS Watchdog' -ErrorAction SilentlyContinue))
-    $consoleLock = (& powercfg /Q SCHEME_CURRENT SUB_NONE CONSOLELOCK) -join "`n"
+    $consoleLock = (& powercfg /Q SCHEME_CURRENT SUB_NONE 0e796bdb-100d-47d6-a2d5-f7d2daa51f51 2>&1) -join "`n"
+    Write-Host $consoleLock
     Check 'sign-in on wake disabled (CONSOLELOCK AC index 0)' ($consoleLock -match 'AC Power Setting Index: 0x00000000')
     Check 'sign-in on wake disabled (CONSOLELOCK DC index 0)' ($consoleLock -match 'DC Power Setting Index: 0x00000000')
     Check 'NoLockScreen policy set' ((Get-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization' -ErrorAction SilentlyContinue).NoLockScreen -eq 1)

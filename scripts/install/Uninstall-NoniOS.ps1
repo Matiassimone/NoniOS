@@ -42,9 +42,9 @@ foreach ($name in @('NoniOS', 'NoniOS Watchdog')) {
 }
 
 # Restore the sign-in prompt on wake / secure screen saver.
-& powercfg /SETACVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK 1 | Out-Null
-& powercfg /SETDCVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK 1 | Out-Null
-& powercfg /SETACTIVE SCHEME_CURRENT | Out-Null
+& powercfg /SETACVALUEINDEX SCHEME_CURRENT SUB_NONE 0e796bdb-100d-47d6-a2d5-f7d2daa51f51 1 2>&1 | Write-Host
+& powercfg /SETDCVALUEINDEX SCHEME_CURRENT SUB_NONE 0e796bdb-100d-47d6-a2d5-f7d2daa51f51 1 2>&1 | Write-Host
+& powercfg /SETACTIVE SCHEME_CURRENT 2>&1 | Write-Host
 Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization' -Name 'NoLockScreen' -ErrorAction SilentlyContinue
 Write-Host 'Restored the sign-in prompt on wake.'
 

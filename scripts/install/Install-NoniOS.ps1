@@ -130,12 +130,14 @@ Register-ScheduledTask -TaskName $WatchdogTaskName -Action $watchdogAction -Trig
 
 Write-Host "Registered Scheduled Tasks '$MainTaskName' and '$WatchdogTaskName' for user '$User'."
 
-# --- Never show the end user a lock screen. Autologon gets past the boot
+# --- Never show the end user a lock screen. (0e796bdb-… is the
+# 'Require a password on wakeup' setting; its CONSOLELOCK alias is hidden on
+# some Windows 11 builds, the GUID always works.) Autologon gets past the boot
 # sign-in, but Windows would still demand the password after sleep or the
 # screen saver. Reverted by Uninstall-NoniOS.ps1.
-& powercfg /SETACVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK 0 | Out-Null
-& powercfg /SETDCVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK 0 | Out-Null
-& powercfg /SETACTIVE SCHEME_CURRENT | Out-Null
+& powercfg /SETACVALUEINDEX SCHEME_CURRENT SUB_NONE 0e796bdb-100d-47d6-a2d5-f7d2daa51f51 0 2>&1 | Write-Host
+& powercfg /SETDCVALUEINDEX SCHEME_CURRENT SUB_NONE 0e796bdb-100d-47d6-a2d5-f7d2daa51f51 0 2>&1 | Write-Host
+& powercfg /SETACTIVE SCHEME_CURRENT 2>&1 | Write-Host
 Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'ScreenSaverIsSecure' -Value '0' -Type String
 $personalization = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization'
 New-Item -Path $personalization -Force | Out-Null
