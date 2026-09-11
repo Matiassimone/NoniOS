@@ -574,3 +574,11 @@ leave a single-afternoon manual playbook. Executed inline (autonomous run).
 ### Next task
 
 Run `docs/verification/windows-round.md` on a real Windows machine using the CI artifact; fix from the report; then merge `matiassimone/build-run-two` → `development` (human checkpoint).
+
+### Addendum — three CI findings after the report above
+
+- `window_watcher.rs` (Windows body): the spawn-failure fallback borrowed the `AppHandle` already moved into the thread. Caught only by MSVC; fixed by cloning the handle. This is exactly why the macOS host cannot be the last gate.
+- The CI gate steps ran under PowerShell, which does **not** stop a multi-line `run` when a native command exits non-zero — clippy had failed while the step showed green. Gate steps now use `shell: bash` (`-eo pipefail`).
+- With real gates on, Prettier flagged every file: `actions/checkout` on Windows applied `autocrlf`. Added `.gitattributes` (`* text=auto eol=lf`, binaries marked) — also protects anyone cloning on Windows.
+
+Final state: run `34546063450` on `matiassimone/build-run-two` — build **and** smoke green with enforced gates; every smoke check PASS.
