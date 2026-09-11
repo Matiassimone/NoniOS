@@ -83,6 +83,10 @@ try {
     & $installScript -InstallDir $InstallDir -SkipAutologon
     Check "task 'NoniOS' registered" ([bool](Get-ScheduledTask -TaskName 'NoniOS' -ErrorAction SilentlyContinue))
     Check "task 'NoniOS Watchdog' registered" ([bool](Get-ScheduledTask -TaskName 'NoniOS Watchdog' -ErrorAction SilentlyContinue))
+    $consoleLock = (& powercfg /Q SCHEME_CURRENT SUB_NONE CONSOLELOCK) -join "`n"
+    Check 'sign-in on wake disabled (CONSOLELOCK AC index 0)' ($consoleLock -match 'AC Power Setting Index: 0x00000000')
+    Check 'sign-in on wake disabled (CONSOLELOCK DC index 0)' ($consoleLock -match 'DC Power Setting Index: 0x00000000')
+    Check 'NoLockScreen policy set' ((Get-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization' -ErrorAction SilentlyContinue).NoLockScreen -eq 1)
 
     # ---- 3. Watchdog relaunch ----------------------------------------------
     Write-Host '== 3. kill NoniOS, run the watchdog once, expect a relaunch'
@@ -95,6 +99,22 @@ try {
     Check 'watchdog logged the relaunch attempt' ($wdLog -match "running task 'NoniOS'")
     Check 'NoniOS is running again after the watchdog' ([bool](Get-NoniosProcess)) 'schtasks /Run did not bring it back — check LastTaskResult'
     Get-ScheduledTaskInfo -TaskName 'NoniOS' | Format-List TaskName, LastRunTime, LastTaskResult | Out-String | Write-Host
+
+    # ---- 3b. Watchdog honours the administrator's autostart switch ----------
+    Write-Host '== 3b. autostart:false in config.json keeps the watchdog quiet'
+    $configDir = Join-Path $env:APPDATA 'com.nonios.launcher'
+    $configPath = Join-Path $configDir 'config.json'
+    $hadConfig = Test-Path $configPath
+    if ($hadConfig) { Copy-Item $configPath "$configPath.smoke-backup" }
+    New-Item -ItemType Directory -Force -Path $configDir | Out-Null
+    '{"schemaVersion":1,"autostart":false,"tiles":[]}' | Set-Content -Path $configPath -Encoding UTF8
+    Stop-Nonios
+    Start-Process -FilePath $watchdog -WorkingDirectory $InstallDir -Wait | Out-Null
+    Start-Sleep -Seconds 5
+    $wdLog = Get-Content (Join-Path $logDir 'watchdog.log') -Raw -ErrorAction SilentlyContinue
+    Check 'watchdog logged that autostart is off' ($wdLog -match 'autostart is off in config.json')
+    Check 'NoniOS was NOT relaunched while autostart is off' (-not (Get-NoniosProcess))
+    if ($hadConfig) { Move-Item "$configPath.smoke-backup" $configPath -Force } else { Remove-Item $configPath -Force }
 
     # ---- 4. Autologon shape (throwaway password) ---------------------------
     Write-Host '== 4. configure-autologon writes registry + LSA secret, never plaintext'
@@ -110,6 +130,8 @@ try {
     $props = Get-ItemProperty $winlogon
     Check 'AutoAdminLogon = 1' ($props.AutoAdminLogon -eq '1')
     Check "DefaultUserName = $env:USERNAME" ($props.DefaultUserName -eq $env:USERNAME)
+    $passwordless = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device' -ErrorAction SilentlyContinue
+    Check 'DevicePasswordLessBuildVersion = 0 (Windows Hello requirement off)' ($passwordless.DevicePasswordLessBuildVersion -eq 0)
     $passwordAfter = $props.PSObject.Properties['DefaultPassword']?.Value
     Check 'DefaultPassword in registry unchanged by NoniOS' ($passwordAfter -eq $passwordBefore)
     Check 'throwaway password NOT in registry' ($passwordAfter -ne $throwaway)

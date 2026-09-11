@@ -4,9 +4,9 @@
 //! It blocks ONLY these documented combinations and inspects nothing else — it
 //! is a lockdown filter, never a keylogger (AGENTS.md -> Security):
 //!   * the Windows keys (Start menu / Win+* shortcuts)
-//!   * Alt+Tab (task switcher)
+//!   * Alt+Tab and Alt+Esc (window switching)
 //!   * Alt+F4 (close window)
-//!   * Ctrl+Esc (Start menu)
+//!   * Ctrl+Esc (Start menu) — which also covers Ctrl+Shift+Esc (Task Manager)
 //!
 //! ## Why a dedicated thread
 //!
@@ -122,7 +122,7 @@ fn should_block(vk: u32, alt_down: bool) -> bool {
     if vk == VK_LWIN.0 as u32 || vk == VK_RWIN.0 as u32 {
         return true;
     }
-    if alt_down && (vk == VK_TAB.0 as u32 || vk == VK_F4.0 as u32) {
+    if alt_down && (vk == VK_TAB.0 as u32 || vk == VK_F4.0 as u32 || vk == VK_ESCAPE.0 as u32) {
         return true;
     }
     if vk == VK_ESCAPE.0 as u32 && ctrl_down() {

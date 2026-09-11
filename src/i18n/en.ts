@@ -44,7 +44,7 @@ export const en = {
   'admin.general.autostartHint':
     "For {name}'s computer this should stay on. Turn it off only while doing maintenance.",
   'admin.general.autostartError':
-    "Couldn't change automatic launch. Run the task installer and try again.",
+    "Couldn't change the Windows scheduled tasks (administrator rights needed). The setting is saved and NoniOS won't relaunch itself, but it may still open at sign-in until you run the installer again.",
 
   'admin.tiles.title': 'Tiles',
   'admin.tiles.subtitle': 'The cards {name} sees on the home screen.',

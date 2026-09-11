@@ -45,6 +45,23 @@ never leaves the machine. Pass `-SkipAutologon` to skip this step.
 `Uninstall-NoniOS.ps1 -NoniosExe <path>` reverses it (clears `AutoAdminLogon` and
 the stored secret).
 
+## What else the installer changes (and the uninstaller reverts)
+
+- Sign-in prompt after sleep: off (`powercfg … CONSOLELOCK 0`, AC and DC).
+- Secure screen saver: off (`ScreenSaverIsSecure=0` for the current user).
+- Lock screen policy: `NoLockScreen=1`.
+- `DevicePasswordLessBuildVersion=0` (via `configure-autologon`) so Windows 11
+  honours `AutoAdminLogon` even on Microsoft-account machines. Left in place by
+  the uninstaller — it only re-enables a Settings checkbox.
+
+The watchdog also reads NoniOS's own `config.json`: when the administrator turns
+"Launch automatically" off in Admin, the watchdog stays quiet even if the
+Scheduled Tasks could not be disabled, and it terminates a NoniOS that Windows
+reports as *Not responding* so the relaunch covers hangs, not just crashes.
+
+Testing in Hyper-V? Use a **Basic Session**: Enhanced Session is RDP with its own
+sign-in, so autologon appears not to work from there.
+
 ## Not handled here
 
 - **AnyDesk unattended access** — set up from the app (Admin → Remote Access),

@@ -582,3 +582,23 @@ Run `docs/verification/windows-round.md` on a real Windows machine using the CI 
 - With real gates on, Prettier flagged every file: `actions/checkout` on Windows applied `autocrlf`. Added `.gitattributes` (`* text=auto eol=lf`, binaries marked) — also protects anyone cloning on Windows.
 
 Final state: run `34546063450` on `matiassimone/build-run-two` — build **and** smoke green with enforced gates; every smoke check PASS.
+
+## Session Report — Kiosk reliability review (branch `matiassimone/build-run-two`, 2026-09-11)
+
+Scope: user asked to compare our kiosk/autostart approach against Windows-native
+kiosk modes and commercial kiosk software before the manual round.
+
+### What happened
+
+- **Verdict:** our autologon + at-logon task + watchdog is the standard trio (Microsoft's Shell Launcher does the same and restarts the shell on exit). Commercial kiosks additionally replace `explorer.exe` as shell; Shell Launcher needs Enterprise/Education/IoT. Decision: stay on top of explorer for v1, shell replacement documented as upgrade path (CLAUDE.md → Reliability Architecture).
+- **Gaps closed:** watchdog kills a *Not responding* NoniOS before relaunching (hangs, not just crashes) and honours `autostart:false` from `config.json`; `configure-autologon` sets `DevicePasswordLessBuildVersion=0` (Windows 11 otherwise ignores AutoAdminLogon on Microsoft-account machines); installer disables sign-in on wake (`CONSOLELOCK`), secure screen saver and lock screen (uninstaller reverts); hook also blocks Alt+Esc (Ctrl+Shift+Esc was already covered by the Ctrl+Esc rule); the Admin switch saves the flag before touching the tasks and explains a permissions failure.
+- **Smoke test** now checks CONSOLELOCK AC/DC, NoLockScreen, DevicePasswordLessBuildVersion and that the watchdog stays quiet with `autostart:false`.
+- Playbook: Hyper-V *Enhanced Session* explains earlier "autostart didn't fire" results (autologon lands in the console session); recommends a dedicated local account; adds hang, lock-screen and Ctrl+Shift+Esc rows.
+
+### Manually verified vs. unit tested
+
+- Unit: `autostart_disabled` parser (watchdog). CI smoke: registry/powercfg shape + watchdog quiet path. Hang detection path itself needs a real frozen process (playbook row 5b').
+
+### Next task
+
+Manual round with the new artifact; then merge to `development` (human checkpoint).

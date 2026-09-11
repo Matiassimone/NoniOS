@@ -43,7 +43,7 @@ export const es = {
   'admin.general.autostartHint':
     'Para la computadora de {name} tiene que estar activado. Apagalo solo mientras hacés mantenimiento.',
   'admin.general.autostartError':
-    'No se pudo cambiar el inicio automático. Ejecutá el instalador de tareas y probá de nuevo.',
+    'No se pudieron cambiar las tareas programadas de Windows (hace falta permiso de administrador). La opción quedó guardada y NoniOS no se va a relanzar solo, pero puede abrirse al iniciar sesión hasta que corras el instalador de nuevo.',
 
   'admin.tiles.title': 'Accesos',
   'admin.tiles.subtitle': 'Las tarjetas que ve {name} en la pantalla de inicio.',

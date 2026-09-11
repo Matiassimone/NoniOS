@@ -43,7 +43,7 @@ pub const ALLOW_USER_CLOSE: bool = false;
 
 /// Engages the OS lockdown: hides the Windows taskbar and installs the
 /// low-level keyboard hook that swallows the OS escape combinations
-/// (Win, Alt+Tab, Ctrl+Esc, Alt+F4). Call once, at startup.
+/// (Win, Alt+Tab, Alt+Esc, Ctrl+Esc, Ctrl+Shift+Esc, Alt+F4). Call once, at startup.
 ///
 /// Note the limits: Ctrl+Alt+Del and Win+L are Secure Attention Sequences the
 /// kernel owns — a user-mode hook cannot block them; that requires machine

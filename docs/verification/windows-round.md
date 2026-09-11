@@ -11,6 +11,17 @@ This document is the rest: what only a human at a real, rebootable Windows
 10/11 machine can confirm. Budget: one afternoon. Do it in order; stop and
 report at the first failure of a **blocking** row.
 
+## Before you start: the machine
+
+- **Real hardware or a VM in Basic Session.** Hyper-V's *Enhanced Session* is an
+  RDP connection with its own sign-in — autologon happens in the console
+  session, so from an enhanced session it looks as if autostart never fired.
+  Use View → uncheck *Enhanced Session*, or VirtualBox/VMware, or a real PC.
+- **A dedicated local account** for the end user (e.g. `Noni`) with a password,
+  signed in as that account while installing. A Microsoft account works too
+  (`configure-autologon` switches off the "Require Windows Hello" block), but a
+  local account avoids every cloud nag.
+
 ## 0. Get the build (5 min)
 
 Do **not** build on the test machine. Download the artifact of the latest green
@@ -54,6 +65,7 @@ opens. Press **F4** to see Home (the seeded Netflix + Telefe tiles).
 | 2b | Ctrl+Esc | Nothing |
 | 2c | Alt+Tab | Nothing |
 | 2d | Alt+F4 | Nothing; NoniOS stays |
+| 2d' | Ctrl+Shift+Esc, Alt+Esc | Nothing (no Task Manager, no window switch) |
 | 2e | Move mouse to bottom edge | No taskbar |
 | 2f | F4 | Admin opens; F4 again → Home |
 | 2g | Ctrl+Alt+Del, Win+L | These DO work (kernel-owned; expected, not a bug) |
@@ -104,10 +116,13 @@ C:\NoniOS\install\Install-NoniOS.ps1 -InstallDir C:\NoniOS
 | # | Do | Expected |
 | --- | --- | --- |
 | 5a | `reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"` | `AutoAdminLogon=1`, `DefaultUserName` set, **no `DefaultPassword` value added by us** |
+| 5a' | `reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device"` | `DevicePasswordLessBuildVersion = 0` |
 | 5b | Task Manager → end `NoniOS.exe` | Back within ~60 s (watchdog) |
+| 5b' | Freeze NoniOS: Task Manager → right-click `NoniOS.exe` → *Suspend* (Details tab, or Process Explorer) | Within ~60–120 s the watchdog logs `not responding`, kills it and NoniOS comes back |
 | 5c | Admin → autostart OFF, end NoniOS | Does NOT come back; `Get-ScheduledTask NoniOS*` shows both Disabled. Turn it back ON (start NoniOS.exe by hand, F4, switch) |
 | 5d | **Reboot** | Machine logs in by itself; NoniOS is on screen without anyone touching the keyboard |
-| 5e | Sleep (power menu is unreachable — use `rundll32 powrprof.dll,SetSuspendState 0,1,0` from an elevated prompt before installing tasks, or the power button) → wake | NoniOS is in front (or within ~60 s) |
+| 5e | Sleep (power menu is unreachable — use `rundll32 powrprof.dll,SetSuspendState 0,1,0` from an elevated prompt before installing tasks, or the power button) → wake | **No sign-in/lock screen**; NoniOS is in front (or within ~60 s) |
+| 5e' | Leave the machine idle past the screen-saver / screen-off timeout, then wake it | Again no lock screen, straight back to NoniOS |
 | 5f | `Get-Content $env:LOCALAPPDATA\NoniOS\watchdog.log -Tail 5` | One line per minute, `NoniOS is running; nothing to do` |
 
 ## 6. Teardown (2 min)

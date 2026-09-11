@@ -8,6 +8,11 @@
 //! What gets written:
 //!   * Registry `HKLM\...\Winlogon`: `AutoAdminLogon=1`, `DefaultUserName`,
 //!     `DefaultDomainName` (non-secret — normal registry values).
+//!   * Registry `HKLM\...\PasswordLess\Device`: `DevicePasswordLessBuildVersion=0`.
+//!     Windows 11's "Require Windows Hello sign-in for Microsoft accounts"
+//!     silently ignores AutoAdminLogon while this is 2 (its default on a
+//!     Microsoft-account machine) — the classic "autologon is configured but
+//!     the lock screen still appears" failure.
 //!   * The PASSWORD is stored as the LSA secret `DefaultPassword` via
 //!     `LsaStorePrivateData` — the same mechanism Sysinternals Autologon uses.
 //!     It is NEVER written to the registry (which would be plaintext), never
@@ -42,11 +47,15 @@ mod imp {
         LsaClose, LsaNtStatusToWinError, LsaOpenPolicy, LsaStorePrivateData, LSA_HANDLE,
         LSA_OBJECT_ATTRIBUTES, LSA_UNICODE_STRING,
     };
-    use windows::Win32::System::Registry::{RegSetKeyValueW, HKEY_LOCAL_MACHINE, REG_SZ};
+    use windows::Win32::System::Registry::{
+        RegSetKeyValueW, HKEY_LOCAL_MACHINE, REG_DWORD, REG_SZ,
+    };
 
     use super::AutologonError;
 
     const WINLOGON_KEY: &str = "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Winlogon";
+    const PASSWORDLESS_KEY: &str =
+        "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\PasswordLess\\Device";
     /// `POLICY_CREATE_SECRET` access right (ntsecapi.h). Needed by
     /// `LsaStorePrivateData`; defined locally to avoid depending on the constant
     /// being re-exported by the bindings.
@@ -64,6 +73,31 @@ mod imp {
             Length: ((chars_with_nul - 1) * 2) as u16,
             MaximumLength: (chars_with_nul * 2) as u16,
             Buffer: PWSTR(buf.as_mut_ptr()),
+        }
+    }
+
+    fn set_reg_dword(subkey: &str, value_name: &str, data: u32) -> Result<(), AutologonError> {
+        let subkey = utf16_nul(subkey);
+        let name = utf16_nul(value_name);
+        // SAFETY: valid null-terminated wide strings; a REG_DWORD is exactly the
+        // four bytes of `data`.
+        let status = unsafe {
+            RegSetKeyValueW(
+                HKEY_LOCAL_MACHINE,
+                PCWSTR(subkey.as_ptr()),
+                PCWSTR(name.as_ptr()),
+                REG_DWORD.0,
+                Some(&data as *const u32 as *const c_void),
+                core::mem::size_of::<u32>() as u32,
+            )
+        };
+        if status.0 == 0 {
+            Ok(())
+        } else {
+            Err(AutologonError::Registry {
+                value: value_name.to_string(),
+                code: status.0,
+            })
         }
     }
 
@@ -136,6 +170,9 @@ mod imp {
     }
 
     pub fn configure(domain: &str, username: &str, password: &str) -> Result<(), AutologonError> {
+        // Must be 0 or Windows 11 ignores AutoAdminLogon (see module docs). Left
+        // in place by `disable`: it only re-enables a Settings checkbox.
+        set_reg_dword(PASSWORDLESS_KEY, "DevicePasswordLessBuildVersion", 0)?;
         set_reg_sz("AutoAdminLogon", "1")?;
         set_reg_sz("DefaultUserName", username)?;
         set_reg_sz("DefaultDomainName", domain)?;

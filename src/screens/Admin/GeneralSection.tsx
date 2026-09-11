@@ -183,11 +183,11 @@ function AutostartToggle() {
   const toggle = (enabled: boolean) => {
     setBusy(true)
     setError(false)
+    // Save the flag first: the watchdog reads it from config.json, so the
+    // switch holds even when the Scheduled Tasks below cannot be changed.
+    update((current) => ({ ...current, autostart: enabled }))
     setAutostart(enabled).match(
-      () => {
-        update((current) => ({ ...current, autostart: enabled }))
-        setBusy(false)
-      },
+      () => setBusy(false),
       () => {
         setError(true)
         setBusy(false)

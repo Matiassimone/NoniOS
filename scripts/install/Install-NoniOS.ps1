@@ -130,6 +130,18 @@ Register-ScheduledTask -TaskName $WatchdogTaskName -Action $watchdogAction -Trig
 
 Write-Host "Registered Scheduled Tasks '$MainTaskName' and '$WatchdogTaskName' for user '$User'."
 
+# --- Never show the end user a lock screen. Autologon gets past the boot
+# sign-in, but Windows would still demand the password after sleep or the
+# screen saver. Reverted by Uninstall-NoniOS.ps1.
+& powercfg /SETACVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK 0 | Out-Null
+& powercfg /SETDCVALUEINDEX SCHEME_CURRENT SUB_NONE CONSOLELOCK 0 | Out-Null
+& powercfg /SETACTIVE SCHEME_CURRENT | Out-Null
+Set-ItemProperty -Path 'HKCU:\Control Panel\Desktop' -Name 'ScreenSaverIsSecure' -Value '0' -Type String
+$personalization = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization'
+New-Item -Path $personalization -Force | Out-Null
+Set-ItemProperty -Path $personalization -Name 'NoLockScreen' -Value 1 -Type DWord
+Write-Host 'Disabled the sign-in prompt on wake and the secure screen saver.'
+
 # --- Autologon: configure it via NoniOS itself so a reboot recovers unattended.
 # The password is piped to NoniOS on STDIN (never an argument, never this script's
 # variables on disk) and stored by NoniOS only as an LSA secret — never in the
