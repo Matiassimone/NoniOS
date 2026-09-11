@@ -135,6 +135,8 @@ Write-Host "Registered Scheduled Tasks '$MainTaskName' and '$WatchdogTaskName' f
 # some Windows 11 builds, the GUID always works.) Autologon gets past the boot
 # sign-in, but Windows would still demand the password after sleep or the
 # screen saver. Reverted by Uninstall-NoniOS.ps1.
+# Windows 11 hides this setting; unhide it so it can be set, queried and audited.
+& powercfg /ATTRIBUTES SUB_NONE 0e796bdb-100d-47d6-a2d5-f7d2daa51f51 -ATTRIB_HIDE 2>&1 | Write-Host
 & powercfg /SETACVALUEINDEX SCHEME_CURRENT SUB_NONE 0e796bdb-100d-47d6-a2d5-f7d2daa51f51 0 2>&1 | Write-Host
 & powercfg /SETDCVALUEINDEX SCHEME_CURRENT SUB_NONE 0e796bdb-100d-47d6-a2d5-f7d2daa51f51 0 2>&1 | Write-Host
 & powercfg /SETACTIVE SCHEME_CURRENT 2>&1 | Write-Host
