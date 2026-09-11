@@ -28,7 +28,11 @@ describe('i18n dictionaries', () => {
 describe('translate', () => {
   it('interpolates variables and leaves unknown placeholders visible', () => {
     expect(translate('es', 'home.launching', { app: 'Netflix' })).toBe('Abriendo Netflix…')
-    expect(translate('en', 'home.returning.title', { name: 'Noni' })).toBe('Welcome back, Noni')
-    expect(translate('en', 'home.returning.title')).toBe('Welcome back, {name}')
+    expect(translate('en', 'admin.tiles.subtitle', { name: 'Noni' })).toBe(
+      'The cards Noni sees on the home screen.',
+    )
+    expect(translate('en', 'admin.tiles.subtitle')).toBe(
+      'The cards {name} sees on the home screen.',
+    )
   })
 })

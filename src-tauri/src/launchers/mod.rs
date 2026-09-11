@@ -35,7 +35,13 @@ pub fn launch(app: &AppHandle, tile: &Tile) -> Result<(), LaunchError> {
         return Err(LaunchError::NoTarget(tile.id.clone()));
     }
     match tile.kind.as_str() {
-        "web" => webview_app::open(app, &tile.target).map_err(LaunchError::Web),
+        "web" => {
+            webview_app::open(app, &tile.target).map_err(LaunchError::Web)?;
+            // Our own window exists as soon as `open` returns: that is the
+            // "shown" signal for web tiles (no foreground watcher involved).
+            window_watcher::notify_shown(app);
+            Ok(())
+        }
         "app" => {
             // Drop always-on-top BEFORE the app appears so it can come to the
             // front; NoniOS stays fullscreen behind it, so the desktop is never

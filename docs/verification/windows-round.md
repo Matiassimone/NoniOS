@@ -22,6 +22,15 @@ report at the first failure of a **blocking** row.
   (`configure-autologon` switches off the "Require Windows Hello" block), but a
   local account avoids every cloud nag.
 
+- **Hyper-V routes Windows key combos to the HOST by default** unless the VM
+  window is full screen. Win, Ctrl+Esc and Alt+Tab then open *your PC's* Start
+  menu / switcher, which looks exactly like the kiosk failing. Before section 2:
+  Hyper-V Manager → Hyper-V Settings (host, right pane) → Keyboard → **"Use on
+  the virtual machine"**, or run the VM window full screen (Ctrl+Alt+Break).
+  Proof either way: after the test, F4 → Cerrar NoniOS and read
+  `nonios.log` — the exit line says `keyboard hook blocked N keystrokes`. N = 0
+  after pressing Win/Alt+Tab means the keys never reached the VM.
+
 ## 0. Get the build (5 min)
 
 Do **not** build on the test machine. Download the artifact of the latest green
@@ -69,6 +78,7 @@ opens. Press **F4** to see Home (the seeded Netflix + Telefe tiles).
 | 2e | Move mouse to bottom edge | No taskbar |
 | 2f | F4 | Admin opens; F4 again → Home |
 | 2g | Ctrl+Alt+Del, Win+L | These DO work (kernel-owned; expected, not a bug) |
+| 2h | F4 → Cerrar NoniOS, then `Get-Content $env:LOCALAPPDATA\NoniOS\nonios.log -Tail 1` | `keyboard hook blocked N keystrokes` with N > 0 |
 
 Log to check: `%LOCALAPPDATA%\NoniOS\nonios.log` has `kiosk lockdown engaged`.
 
@@ -93,12 +103,12 @@ In Admin (F4):
 
 | # | Do | Expected |
 | --- | --- | --- |
-| 4a | Tap **Telefe** | Tap sound; "Abriendo Telefe…" overlay; the site opens fullscreen below a top bar that reads "Telefe" + a big **Volver al inicio** button; the stream plays (JW Player, ads first) |
-| 4b | Tap **Volver al inicio** | Warm sound; "Hola de nuevo, {name} / Estás en casa" for ~2 s; Home |
+| 4a | Tap **Telefe** | Tap sound; "Abriendo Telefe…" overlay; the site opens below a top bar that reads "Telefe" + a big **Volver al inicio** button; the stream plays (JW Player, ads first). If the page stays white for > 15 s, open the same URL in Edge inside the VM and check `nonios.log` for `external page load started/finished` |
+| 4b | Tap **Volver al inicio** | Warm sound; the logo for ~1 s; Home |
 | 4c | Tap **Netflix** | Overlay; the Store app comes to the front; NoniOS is NOT visible (it is behind) |
 | 4d | Close Netflix with its own X | Within ~1 s NoniOS is back in front with the returning overlay, then Home |
 | 4e | Tap Netflix, then press **F4** while Netflix is in front | Admin opens in front of Netflix (NoniOS regains topmost) |
-| 4f | Tap a tile whose target is empty (delete Netflix's target by re-detecting on a machine without it, or add an exe tile with a bogus path) | Overlay, then the returning screen — never an error dialog |
+| 4f | Netflix not installed | The Netflix tile is NOT shown on Home (Admin lists it as `no detectada`). Add an exe tile with a bogus path to see: overlay, then the logo beat, never an error dialog |
 | 4g | During 4c, watch the desktop | At no point is the bare Windows desktop the only thing visible |
 
 If 4d does not return within ~5 s, note whether Netflix's window is still

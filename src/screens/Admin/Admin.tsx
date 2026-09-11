@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 
-import { invoke } from '@tauri-apps/api/core'
 import { Home, LayoutGrid, MonitorSmartphone, Settings } from 'lucide-react'
 
 import { NoniButton } from '@/components/NoniButton'
@@ -9,6 +8,7 @@ import { useConfig } from '@/hooks/useConfig'
 import { useTranslation, type TranslationKey } from '@/i18n/useTranslation'
 import { TargetKind, TileKind } from '@/lib/config'
 import { findInstalledApp, listInstalledApps } from '@/lib/installedApps'
+import { invoke } from '@/lib/ipc'
 import { cn } from '@/lib/utils'
 
 import { GeneralSection } from './GeneralSection'

@@ -175,6 +175,8 @@ NoniOS has exactly two screens plus the one-time setup wizard. There is no third
 - Shows: a time-of-day greeting (morning/afternoon/evening) with the end user's name, today's date written out in full, and current weather — small, calm, informational, never interactive.
 - A grid of large tiles, fully configured by Admin — nothing about the tile grid is hardcoded to "Netflix + Telefe" in code; that's just the seeded default data.
 - One tap on a tile launches that app or URL immediately. No confirmation dialog, ever.
+- A tile whose launch target is still empty (Netflix before detection, an app that was uninstalled) is **not shown on Home** — the end user must never tap something that does nothing. Admin still lists it as "not detected" with Re-detect.
+- One small, muted "Administración: F4" hint sits in the bottom-right corner (administrator's request, 2026-09-11) — the only visible reference to Admin.
 
 **Home is a four-state machine, one visible state at a time:**
 
@@ -183,7 +185,7 @@ NoniOS has exactly two screens plus the one-time setup wizard. There is no third
 | `home` | The tile grid, at rest. | `launching`, on tap |
 | `launching` | Full-screen overlay: the tapped tile's icon "breathing" inside a spinning progress ring, "Opening {app}…". Exists because the end user taps again if she doesn't see instant feedback — this has to appear the instant the tap registers, not after the external app has actually opened. | `inApp`, automatically once the external process/window is confirmed up |
 | `inApp` | The external app/webview has focus; NoniOS itself is not visible. | `returning`, the moment the window watcher detects the external app closed, crashed, or lost its window |
-| `returning` | Full-screen overlay: the logo plus "Welcome back, {name}" / "You're home now" — deliberately framed as a warm return, never as an error screen, even if the external app crashed. | `home`, automatically after a short beat |
+| `returning` | Full-screen overlay with just the logo for about a second (the prototype's "Welcome back" copy was dropped 2026-09-11 as noise) — never an error screen, even if the external app crashed. | `home`, automatically after a short beat |
 
 The `launching`→`inApp` and `inApp`→`returning` transitions are driven by events emitted from `kiosk/window_watcher.rs` (see `AGENTS.md`), not by a fixed timer in the frontend — the prototype uses a timer only as a stand-in since it has no real OS window to watch.
 
@@ -392,7 +394,7 @@ One `DESIGN.md` is enough — NoniOS has one surface (the desktop app) and two s
 
 Before touching any frontend component, read `docs/design/app/DESIGN.md`. Any visual decision not covered there requires confirmation before implementing.
 
-**Both `.dc.html` prototypes render at a fixed 1920×1080 canvas.** Real machines run other resolutions (1366×768 is common on older hardware; 4K on newer). Do not reinterpret this as "make it responsive" — a responsive redesign would let card sizes, spacing, and grid wrapping drift from what was actually designed and reviewed. Instead, render the whole UI inside a fixed 1920×1080 root and apply a single `transform: scale()` computed from the real window size (`useViewportScale.ts`). The layout itself never changes; only its rendered size does.
+**Both `.dc.html` prototypes render at a fixed 1920×1080 canvas.** Real machines run other resolutions (1366×768 is common on older hardware; 4K on newer). Do not reinterpret this as "make it responsive" — a responsive redesign would let card sizes, spacing, and grid wrapping drift from what was actually designed and reviewed. Instead, render the whole UI inside a fixed design canvas and apply a single `transform: scale()` computed from the real window size (`useViewportScale.ts`). The layout itself never changes; only its rendered size does. **Cover, not contain (decided 2026-09-11):** the canvas is scaled to fit and then extended along the axis with spare room (1920×1200 on 16:10, 1920×1920 on a square window), so there are never empty letterbox bands; Home keeps its header top-left and centres the grid in the extra height, Admin's sidebar and content simply get taller. Component sizes never change.
 
 **The `.dc.html` files use raw inline-styled HTML elements, not the real component layer** — that's a property of the prototyping tool, not a design decision. The actual implementation still goes through `Noni*`/shadcn components (`NoniButton`, `NoniInput`, etc.) per the Stack Rules in `AGENTS.md`; treat the prototypes as the source of truth for layout, spacing, states, and copy — not for how the markup itself should be written.
 

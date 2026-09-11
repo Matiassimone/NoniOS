@@ -1,25 +1,18 @@
 import type { ReactNode } from 'react'
 
-import { CANVAS_HEIGHT, CANVAS_WIDTH, useViewportScale } from '@/hooks/useViewportScale'
+import { useViewportScale } from '@/hooks/useViewportScale'
 
 /**
- * Renders `children` inside the fixed 1920×1080 design canvas, scaled uniformly
- * to fill the real window and centered (letterboxed on non-16:9 displays). Every
- * NoniOS screen lives inside this so its layout matches the reviewed design 1:1
- * at any resolution — never a responsive redesign (CLAUDE.md / DESIGN.md).
+ * Renders `children` inside the fixed design canvas, scaled uniformly so it
+ * covers the real window: 1920x1080 on a 16:9 display, taller or wider on other
+ * aspect ratios (see `computeViewport`). Every NoniOS screen lives inside this
+ * so its layout matches the reviewed design 1:1 at any resolution.
  */
 export function ViewportScaler({ children }: { children: ReactNode }) {
-  const scale = useViewportScale()
+  const { scale, width, height } = useViewportScale()
   return (
-    <div className="fixed inset-0 flex items-center justify-center overflow-hidden bg-paper">
-      <div
-        style={{
-          width: CANVAS_WIDTH,
-          height: CANVAS_HEIGHT,
-          transform: `scale(${scale})`,
-          transformOrigin: 'center',
-        }}
-      >
+    <div className="fixed inset-0 overflow-hidden bg-paper">
+      <div style={{ width, height, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
         {children}
       </div>
     </div>

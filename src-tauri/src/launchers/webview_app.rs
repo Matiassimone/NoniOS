@@ -4,7 +4,10 @@
 //! above it. Closing that window is how the end user returns; the main window
 //! never loses its lockdown.
 
+use tauri::webview::PageLoadEvent;
 use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder};
+
+use crate::diag;
 
 /// Label of the external webview window. Shared with `lib.rs` (destroy event)
 /// and `close()`.
@@ -42,6 +45,18 @@ pub fn open(app: &AppHandle, url: &str) -> Result<(), String> {
         .position(0.0, BAR_HEIGHT)
         .inner_size(width, (height - BAR_HEIGHT).max(200.0))
         .focused(true)
+        // Local-only breadcrumbs so a blank page on a test machine can be told
+        // apart from a window that never navigated (the URL host only, no path
+        // or query — nothing about what the end user watched is recorded).
+        .on_page_load(|_, payload| {
+            let host = payload.url().host_str().unwrap_or("?").to_string();
+            match payload.event() {
+                PageLoadEvent::Started => diag::log(&format!("external page load started: {host}")),
+                PageLoadEvent::Finished => {
+                    diag::log(&format!("external page load finished: {host}"))
+                }
+            }
+        })
         .build()
         .map(|_| ())
         .map_err(|error| error.to_string())

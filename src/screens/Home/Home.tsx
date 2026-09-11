@@ -13,8 +13,8 @@ import { InAppBar } from './InAppBar'
 import { TileGrid, TileIcon } from './TileGrid'
 import { HomeView, INITIAL_HOME_STATE, homeReducer } from './homeMachine'
 
-/** How long the "Welcome back" beat stays before Home is shown again. */
-const RETURNING_MS = 2000
+/** How long the returning beat (just the logo) stays before Home is shown again. */
+const RETURNING_MS = 1000
 /** Header clock granularity (greeting + date only need minute precision). */
 const CLOCK_MS = 60 * 1000
 
@@ -58,7 +58,9 @@ export function Home({ onOpenAdmin }: { onOpenAdmin: () => void }) {
     }
   }, [busy])
 
-  const name = config.user.name.trim()
+  // A tile with nothing to launch (e.g. Netflix before detection) is not shown:
+  // the end user must never tap something that does nothing. Admin still lists it.
+  const launchable = config.tiles.filter((tile) => tile.target !== '')
 
   return (
     <div className="relative flex h-full w-full flex-col bg-paper text-ink">
@@ -71,7 +73,12 @@ export function Home({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       />
 
       <HomeHeader now={now} />
-      <TileGrid tiles={config.tiles} onTap={tap} />
+      <TileGrid tiles={launchable} onTap={tap} />
+
+      {/* Maintenance hint for the administrator; deliberately small and muted. */}
+      <span className="absolute right-10 bottom-8 font-mono text-[13px] tracking-[0.06em] text-muted/70">
+        {t('home.adminHint')}
+      </span>
 
       {state.view === HomeView.LAUNCHING && state.active && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-12 bg-paper">
@@ -103,14 +110,8 @@ export function Home({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       )}
 
       {state.view === HomeView.RETURNING && (
-        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-10 bg-paper">
-          <NoniLogo size={96} />
-          <div className="flex flex-col items-center gap-3.5">
-            <div className="text-[60px] font-semibold tracking-[-0.02em] whitespace-nowrap">
-              {name ? t('home.returning.title', { name }) : t('home.returning.titleNoName')}
-            </div>
-            <div className="text-[30px] text-ink2">{t('home.returning.subtitle')}</div>
-          </div>
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-paper">
+          <NoniLogo size={120} className="animate-pulse" />
         </div>
       )}
 

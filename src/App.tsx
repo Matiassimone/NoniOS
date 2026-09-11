@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
 
-import { listen } from '@tauri-apps/api/event'
-
 import { ViewportScaler } from '@/components/ViewportScaler'
 import { ConfigProvider, useConfig } from '@/hooks/useConfig'
 import { TranslationProvider } from '@/i18n/useTranslation'
+import { listen } from '@/lib/ipc'
 import { Admin } from '@/screens/Admin/Admin'
 import { Home } from '@/screens/Home/Home'
 

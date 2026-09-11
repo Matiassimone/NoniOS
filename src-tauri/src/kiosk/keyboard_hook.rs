@@ -43,6 +43,15 @@ use super::KioskError;
 /// to it. `0` means no hook thread is running.
 static HOOK_THREAD_ID: AtomicU32 = AtomicU32::new(0);
 
+/// Keystrokes swallowed so far. A relaxed atomic increment is the only thing the
+/// hook procedure does besides the block decision — no allocation, no locking.
+static BLOCKED: AtomicU32 = AtomicU32::new(0);
+
+/// How many keystrokes the hook has blocked since it was installed.
+pub fn blocked_count() -> u32 {
+    BLOCKED.load(Ordering::Relaxed)
+}
+
 /// Installs the global low-level keyboard hook on a dedicated thread and blocks
 /// until that thread reports whether installation succeeded.
 pub fn install() -> Result<(), KioskError> {
@@ -152,6 +161,7 @@ unsafe extern "system" fn low_level_keyboard_proc(
             let event = &*(lparam.0 as *const KBDLLHOOKSTRUCT);
             let alt_down = (event.flags.0 & LLKHF_ALTDOWN.0) != 0;
             if should_block(event.vkCode, alt_down) {
+                BLOCKED.fetch_add(1, Ordering::Relaxed);
                 return LRESULT(1);
             }
         }

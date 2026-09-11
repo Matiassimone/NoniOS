@@ -57,6 +57,12 @@ pub fn cancel(app: &AppHandle) {
     restore_home(app);
 }
 
+/// Tells the frontend an external surface is in front (used by web tiles, whose
+/// window NoniOS creates itself).
+pub fn notify_shown(app: &AppHandle) {
+    emit(app, SHOWN_EVENT);
+}
+
 fn emit(app: &AppHandle, event: &str) {
     if let Err(error) = app.emit(event, ()) {
         diag::log(&format!("watcher emit {event} failed: {error}"));

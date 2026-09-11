@@ -8,10 +8,8 @@ export const es = {
   'home.greeting.afternoon': 'Buenas tardes',
   'home.greeting.evening': 'Buenas noches',
   'home.launching': 'Abriendo {app}…',
-  'home.returning.title': 'Hola de nuevo, {name}',
-  'home.returning.titleNoName': 'Hola de nuevo',
-  'home.returning.subtitle': 'Estás en casa',
   'home.inApp.back': 'Volver al inicio',
+  'home.adminHint': 'Administración: F4',
 
   'admin.brand.subtitle': 'Administración',
   'admin.nav.general': 'General',

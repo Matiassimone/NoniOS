@@ -56,8 +56,10 @@ describe('App', () => {
   it('renders Home with the seeded tiles once the config has loaded', async () => {
     envelope = { config: DEFAULT_CONFIG, firstBoot: false }
     await render()
-    expect(container.textContent).toContain('Netflix')
     expect(container.textContent).toContain('Telefe')
+    // Netflix is seeded without a launch target: never shown on Home until detected.
+    expect(container.textContent).not.toContain('Netflix')
+    expect(container.textContent).toContain('Admin: F4')
     expect(container.textContent).not.toContain('General settings')
   })
 
@@ -67,7 +69,7 @@ describe('App', () => {
     expect(container.textContent).toContain('General settings')
     expect(container.textContent).toContain('First time here')
     await act(async () => listeners.get('admin-hotkey')?.())
-    expect(container.textContent).toContain('Netflix')
+    expect(container.textContent).toContain('Telefe')
     expect(container.textContent).not.toContain('General settings')
   })
 

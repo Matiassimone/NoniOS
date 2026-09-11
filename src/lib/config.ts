@@ -1,6 +1,7 @@
-import { invoke } from '@tauri-apps/api/core'
 import { ResultAsync } from 'neverthrow'
 import { z } from 'zod'
+
+import { invoke } from '@/lib/ipc'
 
 /** Bundled glyph library keys (DESIGN.md -> Icon glyph library). */
 export const ICON_KEYS = [

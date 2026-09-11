@@ -611,3 +611,17 @@ because the setting is marked hidden; the installer now runs
 setting by GUID (the `CONSOLELOCK` alias is not defined on every build). Run
 `34596609890`: build + smoke green, all checks PASS including the new
 autostart-off, hang-kill path (parser), PasswordLess and lock-screen checks.
+
+## Session Report — VM round 1 feedback (branch `matiassimone/build-run-two`, 2026-09-11)
+
+### What happened
+
+- **Web tiles never left `launching`**: no `external-app-shown` was emitted for the window NoniOS creates itself, so the "Volver" bar never appeared and the overlay covered the strip above the site. Fixed (`notify_shown` after `open`). Also: a superseded external window's `Destroyed` no longer counts as "returned"; page-load start/finish is logged (host only).
+- **Keyboard**: hook logic re-reviewed and unchanged (standard LL-hook approach). Prime suspect for Win/Ctrl+Esc/Alt+Tab "leaking" is Hyper-V routing Windows key combos to the host outside full screen. Added a blocked-keystroke counter logged on exit so the next round has evidence either way.
+- **Home**: tiles without a target hidden; small "Administración: F4" hint; returning beat = logo only, 1 s.
+- **Scaling**: canvas now covers the window (grows along the spare axis) instead of letterboxing — verified with Playwright screenshots at 1920×1080, 1366×768 and 1000×1000 (Home + all Admin sections + modals; no page errors).
+- `lib/ipc.ts` wraps invoke/listen so the UI also runs in a plain browser (`pnpm dev`) for visual checks.
+
+### Next task
+
+Re-test sections 2–5 with the new artifact, keyboard routed to the VM.

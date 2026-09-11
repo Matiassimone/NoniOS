@@ -1,5 +1,6 @@
-import { invoke } from '@tauri-apps/api/core'
 import { ResultAsync } from 'neverthrow'
+
+import { invoke } from '@/lib/ipc'
 
 /** The machine's AnyDesk ID (digits only) or null when AnyDesk isn't installed. */
 export function getAnydeskId(): ResultAsync<string | null, Error> {

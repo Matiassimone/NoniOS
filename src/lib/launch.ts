@@ -1,5 +1,6 @@
-import { invoke } from '@tauri-apps/api/core'
 import { ResultAsync } from 'neverthrow'
+
+import { invoke } from '@/lib/ipc'
 
 /** Thin wrapper over the `launch_tile` command — the frontend never builds a launch itself. */
 export function launchTile(tileId: string): ResultAsync<void, Error> {

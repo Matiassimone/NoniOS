@@ -9,10 +9,8 @@ export const en = {
   'home.greeting.afternoon': 'Good afternoon',
   'home.greeting.evening': 'Good evening',
   'home.launching': 'Opening {app}…',
-  'home.returning.title': 'Welcome back, {name}',
-  'home.returning.titleNoName': 'Welcome back',
-  'home.returning.subtitle': "You're home now",
   'home.inApp.back': 'Back to home',
+  'home.adminHint': 'Admin: F4',
 
   'admin.brand.subtitle': 'Admin',
   'admin.nav.general': 'General',

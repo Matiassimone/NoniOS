@@ -82,7 +82,10 @@ fn set_autostart(enabled: bool) -> Result<(), String> {
 /// global hotkey that works even when the window is holding focus.
 #[tauri::command]
 fn exit_kiosk(app: AppHandle) {
-    diag::log("exit_kiosk requested");
+    diag::log(&format!(
+        "exit_kiosk requested (keyboard hook blocked {} keystrokes this session)",
+        kiosk::blocked_keystrokes()
+    ));
     if let Err(error) = kiosk::disengage() {
         diag::log(&format!("kiosk disengage on exit failed: {error}"));
     }
@@ -177,8 +180,16 @@ pub fn run() {
                     if window.label() == launchers::webview_app::EXTERNAL_LABEL =>
                 {
                     let app = window.app_handle().clone();
-                    kiosk::window_watcher::restore_home(&app);
-                    let _ = app.emit(kiosk::window_watcher::CLOSED_EVENT, ());
+                    // A replacement external window may already exist (tap on a
+                    // web tile while another was open); then this is the OLD one
+                    // going away, not the end user returning.
+                    if app
+                        .get_webview_window(launchers::webview_app::EXTERNAL_LABEL)
+                        .is_none()
+                    {
+                        kiosk::window_watcher::restore_home(&app);
+                        let _ = app.emit(kiosk::window_watcher::CLOSED_EVENT, ());
+                    }
                 }
                 _ => {}
             }

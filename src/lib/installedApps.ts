@@ -1,6 +1,7 @@
-import { invoke } from '@tauri-apps/api/core'
 import { ResultAsync } from 'neverthrow'
 import { z } from 'zod'
+
+import { invoke } from '@/lib/ipc'
 
 export const installedAppSchema = z.object({ name: z.string(), appId: z.string() })
 export type InstalledApp = z.infer<typeof installedAppSchema>

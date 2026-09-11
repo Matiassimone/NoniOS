@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-import { listen } from '@tauri-apps/api/event'
+import { listen } from '@/lib/ipc'
 
 /** Event names emitted by `kiosk/window_watcher.rs`. */
 const SHOWN_EVENT = 'external-app-shown'

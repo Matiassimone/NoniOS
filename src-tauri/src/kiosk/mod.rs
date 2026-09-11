@@ -65,6 +65,20 @@ pub fn disengage() -> Result<(), KioskError> {
     Ok(())
 }
 
+/// Number of keystrokes the low-level hook has swallowed since startup. Pure
+/// diagnostics: lets a test log prove whether the hook is receiving input at
+/// all (0 after pressing Win/Alt+Tab = the keys never reached this session).
+#[cfg(windows)]
+pub fn blocked_keystrokes() -> u32 {
+    keyboard_hook::blocked_count()
+}
+
+/// Dev-host stub — see the Windows [`blocked_keystrokes`].
+#[cfg(not(windows))]
+pub fn blocked_keystrokes() -> u32 {
+    0
+}
+
 /// Shows the taskbar without touching anything else — for the `restore-shell`
 /// CLI subcommand, run from a process that never engaged the lockdown.
 #[cfg(windows)]

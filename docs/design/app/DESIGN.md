@@ -141,10 +141,11 @@ grid wrapping stay exactly as designed; only the rendered size changes.
 3. **inApp** — the external app (Netflix/stream) is in the foreground. The
    prototype represents this with a dark placeholder screen; tapping anywhere
    returns to Home.
-4. **returning** — "coming back home": a `--paper` overlay with the logo and
-   "Hola de nuevo, {name}" / "Estás en casa" ("Welcome back, {name}" / "You're
-   home now"). A warm tone plays. This screen must **never** feel like an
-   error, even if the external app crashed. Returns to **home**.
+4. **returning** — "coming back home": a `--paper` overlay with just the logo
+   for ~1 s (implementation decision 2026-09-11: the prototype's "Hola de
+   nuevo / Estás en casa" copy was dropped as unnecessary on every return). A
+   warm tone plays. This screen must **never** feel like an error, even if the
+   external app crashed. Returns to **home**.
 
 In the real implementation, the `launching → inApp` and `inApp → returning`
 transitions are driven by events from `kiosk/window_watcher.rs`, not by a fixed
@@ -162,7 +163,9 @@ these with short bundled audio files (`src/assets/audio/tap.ogg`,
 
 - **F4** (the end user does not know this shortcut).
 - An invisible `96×96` hotspot in the top-left corner (a maintenance fallback).
-- No visible admin affordance anywhere on Home.
+- A single small muted hint, "Administración: F4", bottom-right (administrator's
+  request 2026-09-11) — otherwise no admin affordance on Home.
+- Tiles without a launch target are hidden on Home (see `CLAUDE.md`).
 
 ---
 
