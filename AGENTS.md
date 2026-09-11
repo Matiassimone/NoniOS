@@ -93,6 +93,8 @@ cargo clippy -- -D warnings
 pnpm build
 ```
 
+**Windows CI is the MSVC gate.** `.github/workflows/windows.yml` runs on every push: the same frontend gates, `cargo fmt/clippy/test` for `src-tauri/` and `watchdog/` on `windows-latest` (the only place the `#[cfg(windows)]` code is actually compiled — the macOS host cannot; `cargo check --target x86_64-pc-windows-gnu` fails on the Tauri crate because `tauri-build` needs `windres`), `pnpm tauri build --bundles nsis`, and then `scripts/ci/Smoke-Test.ps1` on the runner: start → `kiosk lockdown engaged` in the log → tasks registered → watchdog relaunch → autologon registry shape → teardown. Artifacts (`NoniOS.exe`, `nonios-watchdog.exe`, install scripts, NSIS installer) are what gets tested on a real machine — never a locally built binary of unknown vintage. A red `smoke` job never blocks the artifacts.
+
 ---
 
 ## Stack Rules
@@ -166,7 +168,7 @@ The **security-guidance** plugin runs automatically as a pre-tool hook on every 
 NoniOS-specific rules, enforced here because they're outside the plugin's generic scope:
 
 - **No AnyDesk ID, password, or unattended-access credential ever enters the repository** — not in code, not in `.env.example`, not in a comment, not in a commit message, not in a test fixture. These are generated/entered at install time and live only in the machine's local state or in AnyDesk's own storage.
-- **`anydesk_setup.rs` only ever writes credentials to AnyDesk's own configuration** (via its documented CLI), never to NoniOS's own config file or logs.
+- **`anydesk_setup.rs` is read-only**: it locates an installed AnyDesk and asks it for the ID (`--get-id`). It never downloads, installs, reads, stores or sets the unattended-access password. If silent install is ever added, credentials go only to AnyDesk's own configuration via its documented CLI, never to NoniOS's config file or logs.
 - **No telemetry, no phone-home, ever, for any install.** Not for usage stats, not for crash reports, not for update checks beyond fetching the public static release manifest. Every install is a black box to the maintainers by design.
 - **The end-user's activity is not logged or transmitted anywhere.** Which tile they opened, when, stays ephemeral (in-memory, for the window watcher's own bookkeeping) unless an administrator deliberately adds local crash logs for their own debugging — and if so, those logs never leave that specific machine except through an AnyDesk session that administrator personally initiates.
 - **`config/local_store.rs` is the only Rust code that touches the local config file on disk.** No other module reads or writes it directly.

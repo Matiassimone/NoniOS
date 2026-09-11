@@ -79,7 +79,7 @@ Tauri commands (Rust → snake_case):
 | `set_autostart` | `enabled: boolean` | `()` (enables/disables both Scheduled Tasks) |
 | `list_installed_apps` | – | `InstalledApp[]` = `{ name, appId }` |
 | `launch_tile` | `tileId: string` | `()` — emits watcher events afterwards |
-| `close_external` | – | `()` — closes the web tile window (Volver bar) |
+| `return_home` | – | `()` — closes the web tile window, cancels the watcher, re-asserts the kiosk window |
 | `get_anydesk_id` | – | `string \| null` |
 | `exit_kiosk` | – | existing |
 
@@ -87,16 +87,16 @@ Events (Rust → webview): `admin-hotkey` (existing), `external-app-shown`, `ext
 
 ## Tasks
 
-- [ ] **Task 1 — Windows CI** `.github/workflows/windows.yml`: gates, MSVC clippy/test, build
+- [x] **Task 1 — Windows CI** `.github/workflows/windows.yml`: gates, MSVC clippy/test, build
       both exes, smoke test, upload artifacts. Verify: workflow green on push.
-- [ ] **Task 2 — Config layer** `config/local_store.rs`, `lib/config.ts` (Zod + fallback),
+- [x] **Task 2 — Config layer** `config/local_store.rs`, `lib/config.ts` (Zod + fallback),
       `kiosk/autostart.rs`, `hooks/useConfig.tsx`. Tests: schema fallback, seed defaults.
-- [ ] **Task 3 — i18n** `i18n/es.ts`, `en.ts`, `useTranslation.tsx`. Test: key parity.
-- [ ] **Task 4 — Admin** General / Tiles (+ add/edit modals, installed-apps picker, re-detect)
+- [x] **Task 3 — i18n** `i18n/es.ts`, `en.ts`, `useTranslation.tsx`. Test: key parity.
+- [x] **Task 4 — Admin** General / Tiles (+ add/edit modals, installed-apps picker, re-detect)
       / Remote Access; `installed_apps.rs`, `anydesk_setup.rs`; `Noni*` wrappers
       (`NoniInput`, `NoniCard`, `NoniLogo`, `NoniIconGlyph`, `NoniModal`).
-- [ ] **Task 5 — Home + launchers + watcher + audio** `launchers/`, `kiosk/window_watcher.rs`,
+- [x] **Task 5 — Home + launchers + watcher + audio** `launchers/`, `kiosk/window_watcher.rs`,
       `Home.tsx` state machine (pure reducer + test), `HomeHeader`, `TileGrid`, `lib/weather.ts`
       (Open-Meteo, tested parse), `InAppBar`, WAV assets.
-- [ ] **Task 6 — Docs + playbook** update CLAUDE.md/AGENTS.md deviations, SESSION_LOG report,
+- [x] **Task 6 — Docs + playbook** update CLAUDE.md/AGENTS.md deviations, SESSION_LOG report,
       single-afternoon manual verification playbook.

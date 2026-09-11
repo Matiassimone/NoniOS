@@ -39,7 +39,7 @@ Because every install is isolated and the administrator is physically the only p
 Instead: **on first boot (no local config file found yet), NoniOS opens directly into Admin instead of Home**, pre-populated with sensible defaults (English as a neutral fallback locale, empty name, no weather location, Netflix + Telefe seeded as tiles pending AUMID detection). The administrator fills in General, adds/confirms Tiles, and sets up AnyDesk under Remote Access — using the exact same UI they'll use later to make changes. A "Finish setup" affordance (or simply pressing "Back to Home" once the minimum required fields are filled) transitions into Home for the first time.
 
 This means:
-- **AnyDesk silent install + unattended-access password entry** happens the first time the administrator opens the Remote Access section, not in a separate step.
+- **AnyDesk is read-only in v1 (decided 2026-09-10):** Remote Access locates an already-installed AnyDesk and shows the ID it reports (`AnyDesk.exe --get-id`). NoniOS does not download or silently install AnyDesk (a runtime network + supply-chain dependency that cannot be verified off Windows) and never touches the unattended-access password — the administrator installs AnyDesk from the desktop ("Close NoniOS" gets them there) and sets the password inside AnyDesk. Revisit silent install only if real administrators ask for it.
 - **Netflix AUMID detection** runs automatically in the background on first boot and simply shows as "detected" / "not detected — install Netflix and retry" on the Netflix tile row, same as the "re-detect" action described in Screens → Admin.
 - There is no dedicated `screens/Setup/` folder — see the updated Repo Structure below.
 
@@ -187,7 +187,11 @@ NoniOS has exactly two screens plus the one-time setup wizard. There is no third
 
 The `launching`→`inApp` and `inApp`→`returning` transitions are driven by events emitted from `kiosk/window_watcher.rs` (see `AGENTS.md`), not by a fixed timer in the frontend — the prototype uses a timer only as a stand-in since it has no real OS window to watch.
 
-**Sound:** a short confirmation tone on tap, a short warm tone on returning home. Implemented as two bundled short audio files (`src/assets/audio/tap.ogg`, `src/assets/audio/return-home.ogg`) played via the Tauri webview's `<audio>`, not Web Audio oscillators — the prototype's synthesized tones are a placeholder for iterating on timing/feel only.
+**How the end user gets back from an external app (decided 2026-09-10):**
+- **Web tiles** open in a second NoniOS webview window (`launchers/webview_app.rs`, label `external`), always on top but positioned *below* a 120 px strip. The main window keeps that strip and renders one large "Volver al inicio / Back to home" bar there (`screens/Home/InAppBar.tsx`, portalled outside the scaled canvas so it lines up with real pixels). Tapping it destroys the external window, which is the `external-app-closed` signal. No script is injected into third-party pages and no remote-origin IPC is enabled.
+- **App tiles** (Netflix, anything from the installed-app picker): before spawning, the main window drops always-on-top but stays fullscreen *behind* the app — the desktop is never visible, even if the watcher fails. `window_watcher.rs` polls `GetForegroundWindow`: a foreign window in front → `external-app-shown`; the foreground back on NoniOS or the desktop shell (`Progman`/`WorkerW`) for 1 s, or no window within 20 s of launch → `external-app-closed`, always-on-top re-asserted. The end user returns with the app's own close button; Alt+F4 stays blocked globally. F4 (Admin) while in-app calls `return_home`, which cancels the watcher and closes the web window.
+
+**Sound:** a short confirmation tone on tap, a short warm tone on returning home. Implemented as two bundled short audio files (`src/assets/audio/tap.wav`, `src/assets/audio/return-home.wav`) played via the Tauri webview's `<audio>`, not Web Audio oscillators — the prototype's synthesized tones are a placeholder for iterating on timing/feel only. The WAVs are generated deterministically by `scripts/audio/generate.py` (stdlib only), so the repo carries no audio blob of unknown origin; regenerate rather than hand-edit.
 
 **The brand mark (`NoniLogo`) is a static illustrated face — it never rotates.** During `launching` it "breathes" (a subtle scale/opacity pulse), never spins; a spinning face would read as broken, not as a loading indicator. Use a separate ring/arc element for the actual spinner motion.
 
@@ -215,7 +219,7 @@ The `launching`→`inApp` and `inApp`→`returning` transitions are driven by ev
 8. **Supply-chain security is non-negotiable.** Exact versions only (no `^` or `~`) in `dependencies`/`devDependencies`. Lifecycle scripts disabled by default via `.npmrc`. This matters more, not less, now that strangers will `pnpm install` this repo on their own machines.
 9. **Status/kind fields are TypeScript union types via `as const`, never raw strings compared ad hoc** (e.g. `AppLaunchKind`, `TileSource`, `Locale`).
 10. **Config field names are always English identifiers, even though the DESIGN.md prototype's illustrative JSON uses Spanish ones** (`accesos`) for readability during design. The real Zod schema/Rust struct uses `tiles`, not `accesos` — see Data Model below.
-11. **A tile's launch target can be either a Store-app AUMID or a classic executable path — this is one field, not two.** `Tile.target: string` holds either form; `Tile.targetKind: 'aumid' | 'exe'` (set at detection time, in `netflix.rs`/`installed_apps.rs`) tells `launchers/generic_app.rs` which strategy to use. Do not introduce a `path` field that silently means different things for different tiles.
+11. **A tile's launch target can be either a Store-app AUMID or a classic executable path — this is one field, not two.** `Tile.target: string` holds either form; `Tile.targetKind: 'aumid' | 'exe'` (set at detection time by `installed_apps.rs`) tells `launchers/generic_app.rs` which strategy to use. Do not introduce a `path` field that silently means different things for different tiles.
 
 ---
 
@@ -258,7 +262,7 @@ Local config, one JSON file per install, no cloud, no cross-install data:
 - `weather.lat`/`lon` are resolved once from the city search in Admin and cached — the Open-Meteo call at runtime uses coordinates, not a re-geocoded city string, so it doesn't depend on an external geocoding service being up every time Home loads.
 - `anydeskId` is read-only display data; the password is never part of this file.
 
-**Icon glyph library:** a small fixed set of bundled SVGs for generic/web tiles — `play, tv, photos, phone, video, music, globe, book, heart, weather` — living in `src/assets/icons/`. Known first-party tiles (Netflix, Telefe) use their real brand logo image instead of a glyph, stored the same way as any other asset in `src/assets/logos/`. The glyph library and the brand-logo assets are two different things and should not be confused in the icon picker's UI, even though both ultimately render into the same tile slot.
+**Icon glyph library:** a small fixed set of glyph keys for tiles — `play, tv, photos, phone, video, music, globe, book, heart, weather` — rendered by `NoniIconGlyph` from `lucide-react` (already a dependency) rather than from separate SVG files; the key set is fixed by `ICON_KEYS` in `lib/config.ts` and an unknown key in a config file is repaired to `globe` instead of invalidating the config. Brand logo images for first-party tiles and the "upload image" icon option are deferred (trademark review + needs the fs/dialog plugins); the seeds use `play` (Netflix) and `tv` (Telefe) meanwhile.
 
 ---
 
@@ -277,7 +281,7 @@ Both layers are intentionally simple and boring. This is the one part of the cod
 
 ## Netflix and Telefe — implementation notes
 
-- **Netflix launches the Microsoft Store app**, never a browser tab — the Store app's session does not expire the way a web session does. Its tile has `targetKind: "aumid"`; the AUMID itself is resolved at setup time (and re-resolvable from the "Re-detect" action in Admin → Tiles) via installed-app enumeration, never hardcoded, since it varies by Windows build/Store region.
+- **Netflix launches the Microsoft Store app**, never a browser tab — the Store app's session does not expire the way a web session does. Its tile has `targetKind: "aumid"`; the AUMID itself is resolved at setup time (and re-resolvable from the "Re-detect" action in Admin → Tiles) via installed-app enumeration, never hardcoded, since it varies by Windows build/Store region. **One mechanism for detection and launch:** `installed_apps.rs` shells PowerShell's `Get-StartApps` (name + `AppID` for Store *and* classic apps) and `generic_app.rs` launches with `explorer.exe shell:AppsFolder\<AppID>`, so what the picker shows is exactly what gets launched. There is no `netflix.rs` — Netflix is found by name like any other app.
 - **Telefe is embedded directly in the Tauri webview**, `targetKind: "url"`, pointing at `https://www.mitelefe.com/telefe-en-vivo`. Confirmed: this page serves its live stream via JW Player over HLS with standard pre-roll ads — no Widevine/VMP requirement, unlike Netflix — so it plays natively inside WebView2. If Telefe ever changes their player setup, this is the one integration point to re-validate.
 - Both are seeded as **default tile data**, not special-cased code — see Architecture Rule 3 and the Data Model above. Any administrator can delete or replace either one from Admin → Tiles exactly like a tile they added themselves.
 - **Generic tiles added via Admin** use the same two launch patterns: `targetKind: "aumid" | "exe"` for an installed app (resolved via `installed_apps.rs`) or `targetKind: "url"` for a web tile (embedded the same way as Telefe). No third launch mechanism without a concrete need.
@@ -291,9 +295,11 @@ noni-os/
 ├── src/                          # React frontend (Tauri webview)
 │   ├── screens/
 │   │   ├── Home/
-│   │   │   ├── Home.tsx          # owns the home/launching/inApp/returning state machine
+│   │   │   ├── Home.tsx          # renders the four states; timers only for the returning beat
+│   │   │   ├── homeMachine.ts    # pure reducer: home/launching/inApp/returning (unit tested)
 │   │   │   ├── HomeHeader.tsx    # greeting + name + date + weather
-│   │   │   └── TileGrid.tsx
+│   │   │   ├── TileGrid.tsx
+│   │   │   └── InAppBar.tsx      # "Back to home" bar for web tiles (portal, real pixels, matches BAR_HEIGHT in Rust)
 │   │   └── Admin/
 │   │       ├── Admin.tsx         # also handles the first-boot case (see CLAUDE.md -> First Boot)
 │   │       ├── GeneralSection.tsx
@@ -308,7 +314,7 @@ noni-os/
 │   ├── assets/
 │   │   ├── icons/                # bundled glyph library (play, tv, photos, phone, video, music, globe, book, heart, weather)
 │   │   ├── logos/                # first-party brand logos (Netflix, Telefe, ...)
-│   │   └── audio/                # tap.ogg, return-home.ogg
+│   │   └── audio/                # tap.wav, return-home.wav (generated by scripts/audio/generate.py)
 │   ├── i18n/
 │   │   ├── es.ts
 │   │   ├── en.ts
@@ -325,21 +331,24 @@ noni-os/
 ├── src-tauri/                    # main NoniOS binary
 │   ├── src/
 │   │   ├── main.rs
+│   │   ├── diag.rs               # local-only log (%LOCALAPPDATA%\NoniOS\nonios.log), never transmitted
 │   │   ├── kiosk/                # ALL Win32 lockdown code, isolated and auditable
 │   │   │   ├── mod.rs
-│   │   │   ├── keyboard_hook.rs  # WH_KEYBOARD_LL: blocks Win key, Alt+Tab, Ctrl+Esc
+│   │   │   ├── keyboard_hook.rs  # WH_KEYBOARD_LL on its own thread: blocks Win, Alt+Tab, Alt+F4, Ctrl+Esc
 │   │   │   ├── taskbar.rs        # Shell_TrayWnd show/hide
 │   │   │   ├── admin_hotkey.rs   # F4 global shortcut -> toggle Admin screen
-│   │   │   └── window_watcher.rs # detects external app close -> refocus Home
+│   │   │   ├── autologon.rs      # Winlogon registry values + password as an LSA secret
+│   │   │   ├── autostart.rs      # enables/disables both Scheduled Tasks together
+│   │   │   └── window_watcher.rs # foreground polling: external-app-shown / -closed events
 │   │   ├── launchers/
-│   │   │   ├── mod.rs
-│   │   │   ├── netflix.rs
-│   │   │   ├── webview_app.rs    # Telefe + any Admin-added URL tile
-│   │   │   └── generic_app.rs    # Admin-added installed-app tiles
+│   │   │   ├── mod.rs            # launch(tile): dispatch on tile data only
+│   │   │   ├── webview_app.rs    # web tiles: second always-on-top webview window below the bar
+│   │   │   └── generic_app.rs    # app tiles: shell:AppsFolder\<AppID> or an exe path
 │   │   ├── config/
-│   │   │   └── local_store.rs    # reads/writes JSON in the Tauri app data dir
-│   │   ├── installed_apps.rs     # enumerates Start Menu entries for InstalledAppsPicker
-│   │   └── anydesk_setup.rs      # first-run: silent install + unattended access config
+│   │   │   ├── mod.rs            # Config/Tile structs (camelCase JSON) + first-boot seed
+│   │   │   └── local_store.rs    # reads/writes config.json in the Tauri app data dir, atomically
+│   │   ├── installed_apps.rs     # Get-StartApps -> name + AppID, for the picker and re-detect
+│   │   └── anydesk_setup.rs      # read-only: locate AnyDesk.exe, --get-id
 │   ├── tauri.conf.json
 │   └── Cargo.toml
 │
@@ -348,7 +357,11 @@ noni-os/
 │   └── Cargo.toml
 │
 ├── scripts/
-│   └── install/                  # first-run setup: Scheduled Tasks, AnyDesk, wizard entry point
+│   ├── install/                  # Install-NoniOS.ps1 / Uninstall-NoniOS.ps1: Scheduled Tasks + autologon
+│   ├── ci/Smoke-Test.ps1         # reliability chain smoke test (CI on windows-latest; also a pre-flight on a real machine)
+│   └── audio/generate.py         # regenerates src/assets/audio/*.wav
+│
+├── .github/workflows/windows.yml # the only MSVC build: gates, artifacts (NoniOS.exe, watchdog, installer), smoke test
 │
 ├── docs/
 │   └── design/
