@@ -76,10 +76,12 @@ pub fn watch(app: AppHandle) {
         return;
     };
     let own_ptr = own.0 as isize;
+    let thread_app = app.clone();
 
     thread::Builder::new()
         .name("nonios-window-watcher".into())
         .spawn(move || {
+            let app = thread_app;
             let still_current = || GENERATION.load(Ordering::SeqCst) == generation;
 
             // Phase 1: wait for a foreign foreground window.
