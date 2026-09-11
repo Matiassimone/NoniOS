@@ -1,0 +1,9 @@
+# Keep LF everywhere so Prettier/ESLint behave identically on Windows checkouts
+# (core.autocrlf would otherwise rewrite every file to CRLF on the CI runner).
+* text=auto eol=lf
+
+# Binary assets
+*.png binary
+*.ico binary
+*.icns binary
+*.wav binary
