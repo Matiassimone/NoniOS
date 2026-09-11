@@ -43,13 +43,17 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
 
+      # bash (-eo pipefail) so a failing command fails the step; PowerShell's
+      # multi-line `run` keeps going past a native command's non-zero exit.
       - name: Frontend gates
+        shell: bash
         run: |
           pnpm format:check
           pnpm lint
           pnpm test
 
       - name: Rust gates (MSVC)
+        shell: bash
         run: |
           cargo fmt --check --manifest-path src-tauri/Cargo.toml
           cargo clippy --manifest-path src-tauri/Cargo.toml -- -D warnings
