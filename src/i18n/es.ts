@@ -9,6 +9,7 @@ export const es = {
   'home.greeting.evening': 'Buenas noches',
   'home.launching': 'Abriendo {app}…',
   'home.inApp.back': 'Volver al inicio',
+  'home.inApp.pageBack': 'Atrás',
   'home.adminHint': 'Administración: F4',
 
   'admin.brand.subtitle': 'Administración',

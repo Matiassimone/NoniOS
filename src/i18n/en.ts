@@ -10,6 +10,7 @@ export const en = {
   'home.greeting.evening': 'Good evening',
   'home.launching': 'Opening {app}…',
   'home.inApp.back': 'Back to home',
+  'home.inApp.pageBack': 'Back',
   'home.adminHint': 'Admin: F4',
 
   'admin.brand.subtitle': 'Admin',

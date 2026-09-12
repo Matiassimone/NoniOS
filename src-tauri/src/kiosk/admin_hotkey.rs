@@ -22,6 +22,12 @@ pub fn register(app: &AppHandle) -> Result<(), String> {
     app.global_shortcut()
         .on_shortcut(f4, |app, _shortcut, event| {
             if event.state() == ShortcutState::Pressed {
+                // Diagnostics: proves on a test machine whether the keyboard hook
+                // is seeing input at all (see `kiosk::blocked_keystrokes`).
+                crate::diag::log(&format!(
+                    "F4 pressed (keyboard hook has blocked {} keystrokes so far)",
+                    super::blocked_keystrokes()
+                ));
                 // Fire-and-forget: a failed emit is one missed toggle, not a crash.
                 let _ = app.emit(ADMIN_HOTKEY_EVENT, ());
             }

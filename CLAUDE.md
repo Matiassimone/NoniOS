@@ -190,7 +190,7 @@ NoniOS has exactly two screens plus the one-time setup wizard. There is no third
 The `launching`→`inApp` and `inApp`→`returning` transitions are driven by events emitted from `kiosk/window_watcher.rs` (see `AGENTS.md`), not by a fixed timer in the frontend — the prototype uses a timer only as a stand-in since it has no real OS window to watch.
 
 **How the end user gets back from an external app (decided 2026-09-10):**
-- **Web tiles** open in a second NoniOS webview window (`launchers/webview_app.rs`, label `external`), always on top but positioned *below* a 120 px strip. The main window keeps that strip and renders one large "Volver al inicio / Back to home" bar there (`screens/Home/InAppBar.tsx`, portalled outside the scaled canvas so it lines up with real pixels). Tapping it destroys the external window, which is the `external-app-closed` signal. No script is injected into third-party pages and no remote-origin IPC is enabled.
+- **Web tiles** open in a **child webview inside the main window** (`launchers/webview_app.rs`, label `external`, Tauri's `unstable` multiwebview feature; revised 2026-09-12 from a separate window at the administrator's request). The child sits below a 120 px strip where the main webview renders one bar with "Atrás" (browser back via `history.back()`) and "Volver al inicio / Back to home" (`screens/Home/InAppBar.tsx`, portalled outside the scaled canvas so it lines up with real pixels). NoniOS stays a single fullscreen, always-on-top window the whole time. No script is injected into third-party pages and no remote-origin IPC is enabled.
 - **App tiles** (Netflix, anything from the installed-app picker): before spawning, the main window drops always-on-top but stays fullscreen *behind* the app — the desktop is never visible, even if the watcher fails. `window_watcher.rs` polls `GetForegroundWindow`: a foreign window in front → `external-app-shown`; the foreground back on NoniOS or the desktop shell (`Progman`/`WorkerW`) for 1 s, or no window within 20 s of launch → `external-app-closed`, always-on-top re-asserted. The end user returns with the app's own close button; Alt+F4 stays blocked globally. F4 (Admin) while in-app calls `return_home`, which cancels the watcher and closes the web window.
 
 **Sound:** a short confirmation tone on tap, a short warm tone on returning home. Implemented as two bundled short audio files (`src/assets/audio/tap.wav`, `src/assets/audio/return-home.wav`) played via the Tauri webview's `<audio>`, not Web Audio oscillators — the prototype's synthesized tones are a placeholder for iterating on timing/feel only. The WAVs are generated deterministically by `scripts/audio/generate.py` (stdlib only), so the repo carries no audio blob of unknown origin; regenerate rather than hand-edit.
@@ -348,7 +348,7 @@ noni-os/
 │   │   │   └── window_watcher.rs # foreground polling: external-app-shown / -closed events
 │   │   ├── launchers/
 │   │   │   ├── mod.rs            # launch(tile): dispatch on tile data only
-│   │   │   ├── webview_app.rs    # web tiles: second always-on-top webview window below the bar
+│   │   │   ├── webview_app.rs    # web tiles: child webview inside the main window, below the bar
 │   │   │   └── generic_app.rs    # app tiles: shell:AppsFolder\<AppID> or an exe path
 │   │   ├── config/
 │   │   │   ├── mod.rs            # Config/Tile structs (camelCase JSON) + first-boot seed

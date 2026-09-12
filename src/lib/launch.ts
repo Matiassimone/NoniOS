@@ -10,7 +10,12 @@ export function launchTile(tileId: string): ResultAsync<void, Error> {
   )
 }
 
-/** Closes the external web window / stops the watcher and re-asserts the kiosk window. */
+/** Browser-style back inside a web tile's embedded webview. */
+export function externalBack(): ResultAsync<void, Error> {
+  return ResultAsync.fromPromise(invoke<void>('external_back'), (cause) => new Error(String(cause)))
+}
+
+/** Closes the web tile's embedded webview / stops the watcher and re-asserts the kiosk window. */
 export function returnHome(): ResultAsync<void, Error> {
   return ResultAsync.fromPromise(invoke<void>('return_home'), (cause) => new Error(String(cause)))
 }

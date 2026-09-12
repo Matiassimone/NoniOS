@@ -625,3 +625,16 @@ autostart-off, hang-kill path (parser), PasswordLess and lock-screen checks.
 ### Next task
 
 Re-test sections 2–5 with the new artifact, keyboard routed to the VM.
+
+## Session Report — VM round 2 feedback (branch `matiassimone/build-run-two`, 2026-09-12)
+
+### What happened
+
+- **"Cerrar NoniOS" did nothing on the VM.** Root cause not proven (the VM log could not be retrieved), so the exit is now hardened: `exit_kiosk` is async (off the UI thread) and a fallback thread calls `process::exit(0)` 1.5 s after `app.exit` if the event loop has not wound down.
+- **All commands are now `async`.** Tauri runs sync commands on the main (UI) thread; `list_installed_apps` (PowerShell, seconds), `set_autostart` (schtasks) and window/webview work there would freeze the kiosk. Reviewed and fixed across the board.
+- **Web tiles now live inside NoniOS** as a child webview (`tauri` feature `unstable`, `Window::add_child`) below the bar, with a browser-style "Atrás" button (`history.back()`) next to "Volver al inicio". No second window, no z-order games; the `Destroyed` handler is gone. Administrator's explicit request.
+- **Keyboard**: every F4 press now logs the hook's blocked-keystroke counter, so the evidence no longer depends on exiting. Hyper-V's default of routing Windows key combos to the host remains the prime suspect for Win/Ctrl+Esc/Alt+Tab; playbook explains how to switch it and how to read the log via Ctrl+Alt+End → Task Manager if needed.
+
+### Next task
+
+Re-test with the new artifact: Cerrar NoniOS, Telefe embedded + Atrás, keyboard with the log evidence.

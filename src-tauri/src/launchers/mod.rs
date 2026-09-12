@@ -26,10 +26,10 @@ pub enum LaunchError {
     App(String),
 }
 
-/// Launches a tile. Web tiles open in NoniOS's own second webview window (the
-/// watcher gets its "closed" signal from that window being destroyed); app
-/// tiles are started via the OS and then followed by the foreground watcher,
-/// which emits `external-app-shown` / `external-app-closed` to the frontend.
+/// Launches a tile. Web tiles open in a child webview inside the main window
+/// (closed by the bar via `return_home`); app tiles are started via the OS and
+/// then followed by the foreground watcher, which emits `external-app-shown` /
+/// `external-app-closed` to the frontend.
 pub fn launch(app: &AppHandle, tile: &Tile) -> Result<(), LaunchError> {
     if tile.target.is_empty() {
         return Err(LaunchError::NoTarget(tile.id.clone()));

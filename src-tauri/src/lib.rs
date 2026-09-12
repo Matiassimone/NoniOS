@@ -5,7 +5,7 @@ pub mod installed_apps;
 pub mod kiosk;
 pub mod launchers;
 
-use tauri::{AppHandle, Emitter, Manager, WindowEvent};
+use tauri::{AppHandle, Manager, WindowEvent};
 
 use config::local_store::{self, ConfigEnvelope};
 use config::Config;
@@ -13,20 +13,23 @@ use config::Config;
 /// Returns the local config plus whether this is the first boot (no config file
 /// yet), in which case the frontend opens Admin instead of Home.
 #[tauri::command]
-fn get_config(app: AppHandle) -> ConfigEnvelope {
+async fn get_config(app: AppHandle) -> ConfigEnvelope {
     local_store::load(&app)
 }
 
 /// Persists the config the frontend already validated with Zod.
 #[tauri::command]
-fn save_config(app: AppHandle, config: Config) -> Result<(), String> {
+async fn save_config(app: AppHandle, config: Config) -> Result<(), String> {
     local_store::save(&app, &config).map_err(|error| error.to_string())
 }
 
 /// Launches the tile with this id (CLAUDE.md -> Architecture Rule 2: the
 /// frontend never builds a shell command itself).
+// Every command below is `async` on purpose: sync commands run on the main
+// (UI) thread, where spawning PowerShell, schtasks or a webview would freeze
+// NoniOS for the end user.
 #[tauri::command]
-fn launch_tile(app: AppHandle, tile_id: String) -> Result<(), String> {
+async fn launch_tile(app: AppHandle, tile_id: String) -> Result<(), String> {
     let config = local_store::load(&app).config;
     let tile = config
         .tiles
@@ -47,26 +50,32 @@ fn launch_tile(app: AppHandle, tile_id: String) -> Result<(), String> {
 /// foreground watcher and re-asserts the main window. Used by the "Back to
 /// home" bar and when F4 opens Admin while an app is in front.
 #[tauri::command]
-fn return_home(app: AppHandle) {
+async fn return_home(app: AppHandle) {
     launchers::webview_app::close(&app);
     kiosk::window_watcher::cancel(&app);
 }
 
+/// Browser-style back inside the web tile's child webview (the bar's "Atrás").
+#[tauri::command]
+async fn external_back(app: AppHandle) {
+    launchers::webview_app::back(&app);
+}
+
 /// Start menu apps for the Admin picker and tile re-detection.
 #[tauri::command]
-fn list_installed_apps() -> Result<Vec<installed_apps::InstalledApp>, String> {
+async fn list_installed_apps() -> Result<Vec<installed_apps::InstalledApp>, String> {
     installed_apps::list().map_err(|error| error.to_string())
 }
 
 /// This machine's AnyDesk ID, or `None` when AnyDesk isn't installed.
 #[tauri::command]
-fn get_anydesk_id() -> Option<String> {
+async fn get_anydesk_id() -> Option<String> {
     anydesk_setup::get_id()
 }
 
 /// Flips both reliability Scheduled Tasks together (see `kiosk::autostart`).
 #[tauri::command]
-fn set_autostart(enabled: bool) -> Result<(), String> {
+async fn set_autostart(enabled: bool) -> Result<(), String> {
     diag::log(&format!("set_autostart({enabled})"));
     kiosk::autostart::set_enabled(enabled).map_err(|error| error.to_string())
 }
@@ -81,7 +90,7 @@ fn set_autostart(enabled: bool) -> Result<(), String> {
 /// Admin's "Cerrar NoniOS" button, which the end user reaches only via F4 — a
 /// global hotkey that works even when the window is holding focus.
 #[tauri::command]
-fn exit_kiosk(app: AppHandle) {
+async fn exit_kiosk(app: AppHandle) {
     diag::log(&format!(
         "exit_kiosk requested (keyboard hook blocked {} keystrokes this session)",
         kiosk::blocked_keystrokes()
@@ -89,6 +98,14 @@ fn exit_kiosk(app: AppHandle) {
     if let Err(error) = kiosk::disengage() {
         diag::log(&format!("kiosk disengage on exit failed: {error}"));
     }
+    // Belt and braces: if the event loop does not wind down within a moment,
+    // leave anyway. A kiosk the administrator cannot close is the one failure
+    // that strands them (they asked to exit, so nothing is lost by forcing it).
+    std::thread::spawn(|| {
+        std::thread::sleep(std::time::Duration::from_millis(1500));
+        diag::log("exit_kiosk: forcing process exit");
+        std::process::exit(0);
+    });
     app.exit(0);
 }
 
@@ -161,37 +178,17 @@ pub fn run() {
             list_installed_apps,
             get_anydesk_id,
             launch_tile,
-            return_home
+            return_home,
+            external_back
         ])
-        .on_window_event(|window, event| {
-            let is_main = window.label() == "main";
-            match event {
-                // The end user must never close the kiosk (Alt+F4, the hidden
-                // window controls). Reliable, cross-platform half of Alt+F4
-                // handling; the keyboard hook also swallows the keystroke.
-                WindowEvent::CloseRequested { api, .. } if is_main => {
-                    if !kiosk::ALLOW_USER_CLOSE {
-                        api.prevent_close();
-                    }
+        .on_window_event(|_window, event| {
+            // The end user must never close the kiosk (Alt+F4, the hidden window
+            // controls). Reliable, cross-platform half of Alt+F4 handling; the
+            // keyboard hook also swallows the keystroke.
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                if !kiosk::ALLOW_USER_CLOSE {
+                    api.prevent_close();
                 }
-                // The external web window going away — closed from the bar or
-                // crashed — is the "app closed" signal for web tiles.
-                WindowEvent::Destroyed
-                    if window.label() == launchers::webview_app::EXTERNAL_LABEL =>
-                {
-                    let app = window.app_handle().clone();
-                    // A replacement external window may already exist (tap on a
-                    // web tile while another was open); then this is the OLD one
-                    // going away, not the end user returning.
-                    if app
-                        .get_webview_window(launchers::webview_app::EXTERNAL_LABEL)
-                        .is_none()
-                    {
-                        kiosk::window_watcher::restore_home(&app);
-                        let _ = app.emit(kiosk::window_watcher::CLOSED_EVENT, ());
-                    }
-                }
-                _ => {}
             }
         })
         .setup(|app| {

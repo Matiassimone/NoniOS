@@ -6,7 +6,7 @@ import { useSound } from '@/hooks/useSound'
 import { useWindowWatcherEvents } from '@/hooks/useWindowWatcherEvents'
 import { useTranslation } from '@/i18n/useTranslation'
 import { TileKind, type Tile } from '@/lib/config'
-import { launchTile, returnHome } from '@/lib/launch'
+import { externalBack, launchTile, returnHome } from '@/lib/launch'
 
 import { HomeHeader } from './HomeHeader'
 import { InAppBar } from './InAppBar'
@@ -116,7 +116,11 @@ export function Home({ onOpenAdmin }: { onOpenAdmin: () => void }) {
       )}
 
       {state.view === HomeView.IN_APP && state.active?.kind === TileKind.WEB && (
-        <InAppBar title={state.active.name} onReturn={() => void returnHome()} />
+        <InAppBar
+          title={state.active.name}
+          onBack={() => void externalBack()}
+          onReturn={() => void returnHome()}
+        />
       )}
     </div>
   )

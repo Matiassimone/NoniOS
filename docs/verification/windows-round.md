@@ -27,9 +27,13 @@ report at the first failure of a **blocking** row.
   menu / switcher, which looks exactly like the kiosk failing. Before section 2:
   Hyper-V Manager → Hyper-V Settings (host, right pane) → Keyboard → **"Use on
   the virtual machine"**, or run the VM window full screen (Ctrl+Alt+Break).
-  Proof either way: after the test, F4 → Cerrar NoniOS and read
-  `nonios.log` — the exit line says `keyboard hook blocked N keystrokes`. N = 0
-  after pressing Win/Alt+Tab means the keys never reached the VM.
+  Proof either way: every F4 press writes `F4 pressed (keyboard hook has blocked
+  N keystrokes so far)` to `nonios.log`, and Cerrar NoniOS writes the total.
+  N = 0 after pressing Win/Alt+Tab means the keys never reached the VM.
+- **Reading the log while NoniOS is on screen.** Cerrar NoniOS is the normal
+  way; if it ever fails, in VMConnect press **Ctrl+Alt+End** (the VM's
+  Ctrl+Alt+Del) → Task Manager → end `NoniOS.exe`, then open
+  `%LOCALAPPDATA%\NoniOS\nonios.log`.
 
 ## 0. Get the build (5 min)
 
@@ -103,7 +107,8 @@ In Admin (F4):
 
 | # | Do | Expected |
 | --- | --- | --- |
-| 4a | Tap **Telefe** | Tap sound; "Abriendo Telefe…" overlay; the site opens below a top bar that reads "Telefe" + a big **Volver al inicio** button; the stream plays (JW Player, ads first). If the page stays white for > 15 s, open the same URL in Edge inside the VM and check `nonios.log` for `external page load started/finished` |
+| 4a | Tap **Telefe** | Tap sound; "Abriendo Telefe…" overlay; the site opens INSIDE NoniOS below a bar with **Atrás**, "Telefe" and **Volver al inicio**; the stream plays (JW Player, ads first). If the page stays white for > 15 s, open the same URL in Edge inside the VM and check `nonios.log` for `external page load started/finished` |
+| 4a' | Tap a link on the page, then **Atrás** | The embedded page goes back one step; the bar stays |
 | 4b | Tap **Volver al inicio** | Warm sound; the logo for ~1 s; Home |
 | 4c | Tap **Netflix** | Overlay; the Store app comes to the front; NoniOS is NOT visible (it is behind) |
 | 4d | Close Netflix with its own X | Within ~1 s NoniOS is back in front with the returning overlay, then Home |
