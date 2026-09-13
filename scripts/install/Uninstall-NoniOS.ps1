@@ -47,6 +47,10 @@ foreach ($name in @('NoniOS', 'NoniOS Watchdog')) {
 Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization' -Name 'NoLockScreen' -ErrorAction SilentlyContinue
 Write-Host 'Restored the sign-in prompt on wake.'
 
+# Re-enable the Windows key (remove the Scancode Map). Effective after reboot.
+Remove-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout' -Name 'Scancode Map' -ErrorAction SilentlyContinue
+Write-Host 'Re-enabled the Windows key (effective after reboot).'
+
 if ($NoniosExe) {
     if (Test-Path -LiteralPath $NoniosExe) {
         $proc = Start-Process -FilePath $NoniosExe -ArgumentList 'disable-autologon' -Wait -PassThru

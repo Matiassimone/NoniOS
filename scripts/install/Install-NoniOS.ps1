@@ -146,6 +146,24 @@ New-Item -Path $personalization -Force | Out-Null
 Set-ItemProperty -Path $personalization -Name 'NoLockScreen' -Value 1 -Type DWord
 Write-Host 'Disabled the sign-in prompt on wake and the secure screen saver.'
 
+# --- Disable the Windows key at the driver level (Scancode Map). A low-level
+# keyboard hook does not receive the Windows key in every session (RDP, some
+# VMs), so the hook alone is not enough; the Scancode Map disables L/R Win for
+# the whole machine before any app runs. Takes effect on the next reboot (the
+# kiosk reboots via autologon anyway). Reverted by the uninstaller.
+#   Layout: 8 bytes header, count DWORD (=3: two maps + null), then per map
+#   [to-scancode LE][from-scancode LE]; L Win = 0xE05B, R Win = 0xE05C, to 0.
+$scancodeMap = [byte[]](
+    0,0,0,0, 0,0,0,0,
+    3,0,0,0,
+    0x00,0x00,0x5B,0xE0,
+    0x00,0x00,0x5C,0xE0,
+    0,0,0,0
+)
+$keyboardLayout = 'HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout'
+Set-ItemProperty -Path $keyboardLayout -Name 'Scancode Map' -Value $scancodeMap -Type Binary
+Write-Host 'Disabled the Windows key (Scancode Map; effective after reboot).'
+
 # --- Autologon: configure it via NoniOS itself so a reboot recovers unattended.
 # The password is piped to NoniOS on STDIN (never an argument, never this script's
 # variables on disk) and stored by NoniOS only as an LSA secret — never in the

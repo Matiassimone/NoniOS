@@ -3,7 +3,10 @@
 //!
 //! It blocks ONLY these documented combinations and inspects nothing else — it
 //! is a lockdown filter, never a keylogger (AGENTS.md -> Security):
-//!   * the Windows keys (Start menu / Win+* shortcuts)
+//!   * the Windows keys (Start menu / Win+* shortcuts) — best-effort here; a
+//!     low-level hook does not receive the Windows key in every session (RDP,
+//!     some VMs), so the installer ALSO disables it at the driver level via a
+//!     Scancode Map (see scripts/install/Install-NoniOS.ps1). Two layers.
 //!   * Alt+Tab and Alt+Esc (window switching)
 //!   * Alt+F4 (close window)
 //!   * Ctrl+Esc (Start menu) — which also covers Ctrl+Shift+Esc (Task Manager)
@@ -191,10 +194,6 @@ unsafe extern "system" fn low_level_keyboard_proc(
         let is_key = matches!(message, WM_KEYDOWN | WM_SYSKEYDOWN | WM_KEYUP | WM_SYSKEYUP);
         if is_key {
             let event = &*(lparam.0 as *const KBDLLHOOKSTRUCT);
-            SEEN.fetch_add(1, Ordering::Relaxed);
-            if event.vkCode == VK_LWIN.0 as u32 || event.vkCode == VK_RWIN.0 as u32 {
-                WIN_SEEN.fetch_add(1, Ordering::Relaxed);
-            }
             let is_down = matches!(message, WM_KEYDOWN | WM_SYSKEYDOWN);
             track_modifier(event.vkCode, is_down);
             if should_block(event.vkCode) {

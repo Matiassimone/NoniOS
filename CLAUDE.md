@@ -279,6 +279,8 @@ Two independent, redundant layers guarantee NoniOS is always what the end user s
 
    **The installer also removes every other screen the end user could get stuck on:** the sign-in prompt after sleep (`powercfg CONSOLELOCK 0`), the secure screen saver, the lock screen policy, and Windows 11's "Require Windows Hello sign-in" block (`DevicePasswordLessBuildVersion=0`), without which `AutoAdminLogon` is silently ignored on Microsoft-account machines. Autologon that boots into a lock screen is not autologon.
 
+   **The Windows key is disabled at the driver level** via a `Scancode Map` (`HKLM\SYSTEM\...\Keyboard Layout`) mapping L/R Win to nothing, effective after the next reboot. The keyboard hook (`keyboard_hook.rs`) blocks Alt+Tab, Alt+Esc, Ctrl+Esc and Alt+F4, but a low-level hook does not receive the bare Windows key in every session (RDP, some VMs — confirmed in CI: the hook saw 25 injected keys and 0 Windows-key events), so the Scancode Map is the reliable layer for that one key. Two layers, reverted by the uninstaller.
+
    **Why not replace the shell?** Commercial kiosks (and Microsoft's Shell Launcher) set `Winlogon\Shell` to the kiosk app so explorer never runs. Shell Launcher needs Enterprise/Education/IoT; the per-user registry variant works on Home but changes the whole maintenance flow and how Store apps are activated. Decided 2026-09-11: NoniOS runs *on top of* explorer (fullscreen, topmost, taskbar hidden, keys hooked) for v1; shell replacement is the documented upgrade path if this lockdown proves insufficient in the field.
 
 Both layers are intentionally simple and boring. This is the one part of the codebase where "boring and redundant" beats "elegant and clever."

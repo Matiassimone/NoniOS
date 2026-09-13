@@ -647,3 +647,20 @@ Re-test with the new artifact: Cerrar NoniOS, Telefe embedded + Atrás, keyboard
 - **Web tiles: `return_home` now emits `external-app-closed`.** Without it the frontend stayed in `inApp`: the bar stayed after returning and a second tap on Telefe was ignored. Root cause of two reported bugs.
 - Bar shrunk from 120 to 72 px (buttons 52 px); `back()` logs whether the eval was dispatched. Note for the tester: "Atrás" is a no-op until the page has navigated somewhere.
 - Confirmed working by the user on the VM: Telefe embedded, Netflix (Store app) launch, AnyDesk ID, F4, Cerrar NoniOS.
+
+## Session Report — Windows-key root cause (branch `matiassimone/build-run-two`, 2026-09-13)
+
+### What happened
+
+- Reproduced the keyboard report on a real Windows CI runner by injecting the four combinations and reading the hook's counter. Result, measured per combo: Ctrl+Esc 2/2, Alt+Tab 2/2, Alt+F4 2/2, **Win 0/2**. Hook diagnostics showed the hook saw 25 key events and **0 Windows-key events** — the low-level hook never receives the Windows key in that session (headless/RDP), which matches the user's VM report and is a known limitation, not a bug in the hook.
+- **Fix (defense in depth):** the installer now disables the Windows key at the driver level via a `Scancode Map` (L/R Win → 0), effective after reboot, reverted by the uninstaller. The hook still covers Alt+Tab, Alt+Esc, Ctrl+Esc, Alt+F4.
+- Also fixed en route: the hook now self-tracks Ctrl/Alt state (Ctrl+Esc had been unreliable via GetAsyncKeyState). Injected-key CI now green for the three combos + the Scancode Map registry check.
+- Removed the temporary hook diagnostics (kept the blocked-keystroke counter).
+
+### Manually verified vs. unit tested
+
+- CI (real Windows): Ctrl+Esc / Alt+Tab / Alt+F4 blocked by the hook; Scancode Map written by the installer and removed by the uninstaller. The bare Windows key cannot be exercised in CI; the playbook tests it after the reboot in section 5.
+
+### Next task
+
+Re-test on the VM: install tasks, reboot, then press the Windows key — it should do nothing once the Scancode Map is active.

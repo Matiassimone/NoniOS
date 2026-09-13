@@ -74,7 +74,7 @@ opens. Press **F4** to see Home (the seeded Netflix + Telefe tiles).
 
 | # | Press | Expected |
 | --- | --- | --- |
-| 2a | Win | Nothing (no Start menu) |
+| 2a | Win | Nothing (no Start menu). NOTE: the Windows key is disabled by the Scancode Map, which only takes effect AFTER the reboot in section 5. Before that, the Win key may still open Start — that is expected; re-check it after 5d |
 | 2b | Ctrl+Esc | Nothing |
 | 2c | Alt+Tab | Nothing |
 | 2d | Alt+F4 | Nothing; NoniOS stays |
@@ -132,6 +132,7 @@ C:\NoniOS\install\Install-NoniOS.ps1 -InstallDir C:\NoniOS
 | --- | --- | --- |
 | 5a | `reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"` | `AutoAdminLogon=1`, `DefaultUserName` set, **no `DefaultPassword` value added by us** |
 | 5a' | `reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device"` | `DevicePasswordLessBuildVersion = 0` |
+| 5a'' | After the reboot in 5d, press the **Windows key** | Nothing — the Scancode Map is now in effect. This is the real Windows-key test (the hook cannot block it in a VM) |
 | 5b | Task Manager → end `NoniOS.exe` | Back within ~60 s (watchdog) |
 | 5b' | Freeze NoniOS: Task Manager → right-click `NoniOS.exe` → *Suspend* (Details tab, or Process Explorer) | Within ~60–120 s the watchdog logs `not responding`, kills it and NoniOS comes back |
 | 5c | Admin → autostart OFF, end NoniOS | Does NOT come back; `Get-ScheduledTask NoniOS*` shows both Disabled. Turn it back ON (start NoniOS.exe by hand, F4, switch) |
