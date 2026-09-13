@@ -94,19 +94,28 @@ public static class NoniKbd {
     public static void Tap(byte vk) { Down(vk); Up(vk); }
 }
 '@
-    [NoniKbd]::Tap(0x5B)                                           # Win
-    [NoniKbd]::Down(0x11); [NoniKbd]::Tap(0x1B); [NoniKbd]::Up(0x11)   # Ctrl+Esc
-    [NoniKbd]::Down(0x12); [NoniKbd]::Tap(0x09); [NoniKbd]::Up(0x12)   # Alt+Tab
-    [NoniKbd]::Down(0x12); [NoniKbd]::Tap(0x73); [NoniKbd]::Up(0x12)   # Alt+F4
-    Start-Sleep -Milliseconds 500
-    [NoniKbd]::Tap(0x73)                                           # F4 -> log line
-    Start-Sleep -Seconds 2
-    $log = Get-Content $noniosLog -Raw
-    $f4 = [regex]::Matches($log, 'F4 pressed \(keyboard hook has blocked (\d+) keystrokes so far\)')
-    $blocked = if ($f4.Count -gt 0) { [int]$f4[$f4.Count - 1].Groups[1].Value } else { -1 }
-    Write-Host "hook blocked $blocked keystrokes (expected 8)"
-    Check 'F4 hotkey fired for injected input (log line present)' ($f4.Count -gt 0)
-    Check 'keyboard hook blocked all 8 injected keystrokes' ($blocked -eq 8) "got $blocked"
+    # Read the running counter by tapping F4 (F4 alone isn't blocked) and parsing
+    # the latest log line, so each combo's contribution is measured separately.
+    function Get-Blocked {
+        Start-Sleep -Milliseconds 300
+        [NoniKbd]::Tap(0x73)
+        Start-Sleep -Milliseconds 700
+        $m = [regex]::Matches((Get-Content $noniosLog -Raw), 'blocked (\d+) keystrokes so far')
+        if ($m.Count -gt 0) { [int]$m[$m.Count - 1].Groups[1].Value } else { -1 }
+    }
+    $base = Get-Blocked
+    [NoniKbd]::Tap(0x5B); $win = (Get-Blocked) - $base
+    $b = Get-Blocked
+    [NoniKbd]::Down(0x11); [NoniKbd]::Tap(0x1B); [NoniKbd]::Up(0x11); $ctrlEsc = (Get-Blocked) - $b
+    $b = Get-Blocked
+    [NoniKbd]::Down(0x12); [NoniKbd]::Tap(0x09); [NoniKbd]::Up(0x12); $altTab = (Get-Blocked) - $b
+    $b = Get-Blocked
+    [NoniKbd]::Down(0x12); [NoniKbd]::Tap(0x73); [NoniKbd]::Up(0x12); $altF4 = (Get-Blocked) - $b
+    Write-Host "per-combo blocked -> Win:$win Ctrl+Esc:$ctrlEsc Alt+Tab:$altTab Alt+F4:$altF4 (each expected 2)"
+    Check 'Win key blocked (2)' ($win -eq 2) "got $win"
+    Check 'Ctrl+Esc blocked (2)' ($ctrlEsc -eq 2) "got $ctrlEsc"
+    Check 'Alt+Tab blocked (2)' ($altTab -eq 2) "got $altTab"
+    Check 'Alt+F4 blocked (2)' ($altF4 -eq 2) "got $altF4"
     Check 'NoniOS still alive after Alt+F4' ([bool](Get-NoniosProcess))
 
     # ---- 2. Scheduled Tasks -------------------------------------------------
