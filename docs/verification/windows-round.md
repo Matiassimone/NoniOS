@@ -108,7 +108,7 @@ In Admin (F4):
 | # | Do | Expected |
 | --- | --- | --- |
 | 4a | Tap **Telefe** | Tap sound; "Abriendo Telefe…" overlay; the site opens INSIDE NoniOS below a bar with **Atrás**, "Telefe" and **Volver al inicio**; the stream plays (JW Player, ads first). If the page stays white for > 15 s, open the same URL in Edge inside the VM and check `nonios.log` for `external page load started/finished` |
-| 4a' | Tap a link on the page, then **Atrás** | The embedded page goes back one step; the bar stays |
+| 4a' | Tap a link on the page (so there is history), then **Atrás** | The embedded page goes back one step; `nonios.log` gets `external back: history.back() dispatched` |
 | 4b | Tap **Volver al inicio** | Warm sound; the logo for ~1 s; Home |
 | 4c | Tap **Netflix** | Overlay; the Store app comes to the front; NoniOS is NOT visible (it is behind) |
 | 4d | Close Netflix with its own X | Within ~1 s NoniOS is back in front with the returning overlay, then Home |

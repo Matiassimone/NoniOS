@@ -58,9 +58,15 @@ pub fn cancel(app: &AppHandle) {
 }
 
 /// Tells the frontend an external surface is in front (used by web tiles, whose
-/// window NoniOS creates itself).
+/// webview NoniOS creates itself).
 pub fn notify_shown(app: &AppHandle) {
     emit(app, SHOWN_EVENT);
+}
+
+/// Tells the frontend the external surface is gone (used by `return_home`, which
+/// closes a web tile's webview itself and so gets no watcher signal).
+pub fn notify_closed(app: &AppHandle) {
+    emit(app, CLOSED_EVENT);
 }
 
 fn emit(app: &AppHandle, event: &str) {

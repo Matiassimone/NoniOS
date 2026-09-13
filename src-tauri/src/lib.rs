@@ -53,6 +53,9 @@ async fn launch_tile(app: AppHandle, tile_id: String) -> Result<(), String> {
 async fn return_home(app: AppHandle) {
     launchers::webview_app::close(&app);
     kiosk::window_watcher::cancel(&app);
+    // The frontend needs the same "closed" signal a watched app produces, or it
+    // stays in `inApp` (bar left on screen, next tap ignored).
+    kiosk::window_watcher::notify_closed(&app);
 }
 
 /// Browser-style back inside the web tile's child webview (the bar's "Atrás").

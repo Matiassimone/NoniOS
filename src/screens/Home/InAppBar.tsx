@@ -9,7 +9,7 @@ import { useTranslation } from '@/i18n/useTranslation'
  * Height in CSS (logical) pixels of the strip the embedded web tile leaves free
  * at the top. Must match `BAR_HEIGHT` in `src-tauri/src/launchers/webview_app.rs`.
  */
-export const BAR_HEIGHT = 120
+export const BAR_HEIGHT = 72
 
 /**
  * The bar above an embedded web tile: the page title, a browser-style "Atrás"
@@ -29,22 +29,22 @@ export function InAppBar({
   const { t } = useTranslation()
   return createPortal(
     <div
-      className="fixed top-0 right-0 left-0 z-[100] flex items-center justify-between gap-6 border-b border-border bg-paper px-10"
+      className="fixed top-0 right-0 left-0 z-[100] flex items-center justify-between gap-4 border-b border-border bg-paper px-5"
       style={{ height: BAR_HEIGHT }}
     >
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-4">
         <NoniButton
           variant="outline"
-          className="h-[76px] rounded-2xl px-8 text-[26px] font-semibold [&_svg]:size-8"
+          className="h-[52px] rounded-xl px-5 text-[20px] font-semibold [&_svg]:size-6"
           onClick={onBack}
         >
           <ArrowLeft strokeWidth={2.2} />
           {t('home.inApp.pageBack')}
         </NoniButton>
-        <span className="text-[34px] font-semibold text-ink">{title}</span>
+        <span className="text-[24px] font-semibold text-ink">{title}</span>
       </div>
       <NoniButton
-        className="h-[76px] rounded-2xl px-10 text-[28px] font-semibold [&_svg]:size-8"
+        className="h-[52px] rounded-xl px-6 text-[20px] font-semibold [&_svg]:size-6"
         onClick={onReturn}
       >
         <Home strokeWidth={2.2} />

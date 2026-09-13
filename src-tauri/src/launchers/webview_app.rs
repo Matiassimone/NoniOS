@@ -14,7 +14,7 @@ pub const EXTERNAL_LABEL: &str = "external";
 
 /// Height in logical pixels of the strip kept for the bar. Must match
 /// `BAR_HEIGHT` in `src/screens/Home/InAppBar.tsx`.
-pub const BAR_HEIGHT: f64 = 120.0;
+pub const BAR_HEIGHT: f64 = 72.0;
 
 /// Opens `url` in the child webview (replacing one that is already open).
 pub fn open(app: &AppHandle, url: &str) -> Result<(), String> {
@@ -62,9 +62,14 @@ pub fn close(app: &AppHandle) {
     }
 }
 
-/// Browser-style back inside the child webview (the bar's "Atrás").
+/// Browser-style back inside the child webview (the bar's "Atrás"). A no-op when
+/// the page has no history yet (the tile was just opened).
 pub fn back(app: &AppHandle) {
-    if let Some(webview) = app.get_webview(EXTERNAL_LABEL) {
-        let _ = webview.eval("history.back()");
+    match app.get_webview(EXTERNAL_LABEL) {
+        Some(webview) => match webview.eval("window.history.back()") {
+            Ok(()) => diag::log("external back: history.back() dispatched"),
+            Err(error) => diag::log(&format!("external back failed: {error}")),
+        },
+        None => diag::log("external back: no external webview"),
     }
 }

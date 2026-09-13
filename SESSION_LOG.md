@@ -638,3 +638,12 @@ Re-test sections 2–5 with the new artifact, keyboard routed to the VM.
 ### Next task
 
 Re-test with the new artifact: Cerrar NoniOS, Telefe embedded + Atrás, keyboard with the log evidence.
+
+## Session Report — VM round 3 feedback (branch `matiassimone/build-run-two`, 2026-09-13)
+
+### What happened
+
+- **Keyboard: case closed by the log.** `nonios.log` shows the hook blocked **0** keystrokes while the user pressed Win / Ctrl+Esc / Alt+Tab, then **4** when Alt+F4 was pressed twice (down+up ×2). Alt+F4 is the one combination Hyper-V's Virtual Machine Connection passes through; Win, Ctrl+Esc and Alt+Tab are "Windows key combinations" that VMConnect sends to the **host** unless the VM is full screen or Hyper-V Settings → Keyboard is set to "Use on the virtual machine" (Microsoft docs). The hook works; the keys never entered the VM. Microsoft's own guidance for blocking the Windows key is the same WH_KEYBOARD_LL approach NoniOS uses.
+- **Web tiles: `return_home` now emits `external-app-closed`.** Without it the frontend stayed in `inApp`: the bar stayed after returning and a second tap on Telefe was ignored. Root cause of two reported bugs.
+- Bar shrunk from 120 to 72 px (buttons 52 px); `back()` logs whether the eval was dispatched. Note for the tester: "Atrás" is a no-op until the page has navigated somewhere.
+- Confirmed working by the user on the VM: Telefe embedded, Netflix (Store app) launch, AnyDesk ID, F4, Cerrar NoniOS.
