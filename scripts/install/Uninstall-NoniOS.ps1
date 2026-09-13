@@ -51,6 +51,9 @@ Write-Host 'Restored the sign-in prompt on wake.'
 Remove-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout' -Name 'Scancode Map' -ErrorAction SilentlyContinue
 Write-Host 'Re-enabled the Windows key (effective after reboot).'
 
+# Restore Windows' default block on blank-password credential use.
+Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' -Name 'LimitBlankPasswordUse' -Value 1 -Type DWord -ErrorAction SilentlyContinue
+
 if ($NoniosExe) {
     if (Test-Path -LiteralPath $NoniosExe) {
         $proc = Start-Process -FilePath $NoniosExe -ArgumentList 'disable-autologon' -Wait -PassThru

@@ -176,10 +176,20 @@ else {
     if ($parts.Count -eq 2) { $domain = $parts[0]; $name = $parts[1] }
     else { $domain = $env:COMPUTERNAME; $name = $User }
 
-    $secure = Read-Host "Windows password for $User (enables autologon)" -AsSecureString
+    $secure = Read-Host "Windows password for $name (leave EMPTY if the account has no password)" -AsSecureString
     $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
     try {
         $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
+
+        # A blank-password account is the usual state of a fresh PC, and Windows
+        # blocks autologon (and any credential use) for blank passwords by
+        # default. Allow it so the kiosk account can auto-log-in without a
+        # password. If the account HAS a password this is a no-op.
+        if ([string]::IsNullOrEmpty($plain)) {
+            Write-Host "No password entered - enabling blank-password autologon (LimitBlankPasswordUse=0)."
+            Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' -Name 'LimitBlankPasswordUse' -Value 0 -Type DWord
+        }
+
         # NoniOS.exe is a GUI-subsystem binary; `$plain | & exe` would not reliably
         # wait for it or surface its exit code, so drive it as a Process with
         # redirected stdin.
@@ -202,3 +212,17 @@ else {
         Remove-Variable plain -ErrorAction SilentlyContinue
     }
 }
+
+# --- Final summary so it is obvious the reboot-recovery chain is in place.
+Write-Host ''
+Write-Host '================ NoniOS install summary ================'
+$m = Get-ScheduledTask -TaskName $MainTaskName -ErrorAction SilentlyContinue
+$w = Get-ScheduledTask -TaskName $WatchdogTaskName -ErrorAction SilentlyContinue
+Write-Host ("  Task '$MainTaskName': " + $(if ($m) { $m.State } else { 'NOT REGISTERED' }))
+Write-Host ("  Task '$WatchdogTaskName': " + $(if ($w) { $w.State } else { 'NOT REGISTERED' }))
+$al = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -ErrorAction SilentlyContinue)
+Write-Host ("  Autologon: AutoAdminLogon=" + $al.AutoAdminLogon + " user=" + $al.DefaultUserName)
+Write-Host "  Kiosk account (must be the one that turns on): $domain\$name"
+Write-Host '  Next: REBOOT. The machine should log in by itself and show NoniOS.'
+Write-Host '======================================================='
+
