@@ -462,6 +462,33 @@
             done.appendChild(r)
           }
           byId('undo').disabled = !this.history.length
+          this.fit()
+        },
+
+        // Adaptive fan spacing so a tall column never runs off the window: the
+        // more cards a column holds, the tighter they overlap, always fitting
+        // the board height (like the classic game).
+        fit: function () {
+          var board = byId('board')
+          // Subtract the column's own vertical padding (6px top + 6px bottom)
+          // plus a small safety margin so the last card never clips the edge.
+          var avail = board.clientHeight - 26
+          var cols = board.getElementsByClassName('col')
+          for (var c = 0; c < cols.length; c++) {
+            var cards = cols[c].getElementsByClassName('card')
+            if (!cards.length) continue
+            var ch = cards[0].offsetHeight
+            var n = cards.length
+            var step
+            if (n <= 1) step = ch
+            // No hard minimum: an extreme pile just overlaps tighter, but always
+            // stays inside the board.
+            else step = Math.min(ch * 0.34, Math.max(6, (avail - ch) / (n - 1)))
+            var overlap = -(ch - step)
+            for (var i = 0; i < cards.length; i++) {
+              cards[i].style.marginTop = i === 0 ? '0px' : overlap + 'px'
+            }
+          }
         },
       }
 
@@ -473,6 +500,9 @@
       })
       byId('stock').addEventListener('click', function () {
         game.dealStock()
+      })
+      window.addEventListener('resize', function () {
+        game.fit()
       })
       game.deal()
     </script>

@@ -749,3 +749,17 @@ watchdog keep one), noted as a possible single-instance follow-up, not added.
 
 Re-test on the VM with the new artifact: Telefe (video fullscreen + sound),
 open/return/reopen each tile, Spider look.
+
+## Session Report — Spider adaptive spacing + XP-build question (branch `matiassimone/build-run-two`, 2026-09-13)
+
+- **Tall columns overflowed the window.** Added adaptive fan spacing: `fit()`
+  computes the per-card overlap from the board height and column length so the
+  tallest column always stays on screen (re-run on every render and on resize).
+  Verified a 30-card column fits at both 1500x850 and 1366x768 (no overflow).
+- **Q: embed the real Windows XP Spider?** No — it is proprietary Microsoft
+  code; bundling it in an MIT, forkable repo would be copyright infringement.
+  Our own bundled clone stays the answer.
+
+### Next task
+
+Re-test on the VM: Telefe video, Spider with many cards (no overflow).
