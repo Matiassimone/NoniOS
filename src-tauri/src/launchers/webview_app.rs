@@ -36,9 +36,13 @@ pub fn is_external(label: &str) -> bool {
 /// `BAR_HEIGHT` in `src/screens/Home/InAppBar.tsx`.
 pub const BAR_HEIGHT: f64 = 72.0;
 
-/// WebView2 flag that lets the focused video autoplay WITH sound (no user
-/// gesture). Only applied to focus-video tiles.
-const AUTOPLAY_ARGS: &str = "--autoplay-policy=no-user-gesture-required";
+/// Browser args for the external webview. MUST match the main window's
+/// `additionalBrowserArgs` in `tauri.conf.json`, or WebView2 refuses to share
+/// the data directory and the external webview fails to render (Telefe showed
+/// nothing while a plain window worked). Includes Tauri's default disabled
+/// features plus the autoplay policy that lets video start with sound.
+const BROWSER_ARGS: &str =
+    "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required";
 
 /// Injected at document start on focus-video tiles. It does NOT alter the page's
 /// structure (which would break the player) — it drops a black backdrop over the
@@ -133,10 +137,9 @@ fn build(app: &AppHandle, url: WebviewUrl, focus_video: bool) -> Result<(), Stri
                 }
             }
         });
+    builder = builder.additional_browser_args(BROWSER_ARGS);
     if focus_video {
-        builder = builder
-            .additional_browser_args(AUTOPLAY_ARGS)
-            .initialization_script(FOCUS_VIDEO_SCRIPT);
+        builder = builder.initialization_script(FOCUS_VIDEO_SCRIPT);
     }
     builder
         .build()

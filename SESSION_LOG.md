@@ -729,3 +729,23 @@ prefix and only signals "returned" when none remain. The logs also showed
 several NoniOS instances from repeated manual launches ("F4 hotkey NOT
 registered: already registered") — harmless in production (task IgnoreNew +
 watchdog keep one), noted as a possible single-instance follow-up, not added.
+
+## Session Report — Telefe browser-args fix + XP-style Spider (branch `matiassimone/build-run-two`, 2026-09-13)
+
+- **Telefe showed Home behind the bar, no video.** Root cause: the focus-video
+  external window set `additional_browser_args` (autoplay) while the main window
+  had none, and Tauri/WebView2 requires all webviews to share the SAME browser
+  args or the second one fails to render (Solitario worked because it set no
+  extra args). Fix: main window declares `additionalBrowserArgs` in
+  tauri.conf.json (Tauri defaults + `--autoplay-policy=no-user-gesture-required`)
+  and every external window sets the identical string, so they match and the
+  focused video also gets sound.
+- **Spider restyled** to the classic Windows look at the user's request: green
+  felt table, blue patterned card backs, white cards with rank+suit in mirrored
+  corners and a large centre pip. Same tap-to-move logic; verified rendering and
+  a deal via Playwright.
+
+### Next task
+
+Re-test on the VM with the new artifact: Telefe (video fullscreen + sound),
+open/return/reopen each tile, Spider look.

@@ -23,7 +23,8 @@
         "minimizable": false,
         "closable": false,
         "skipTaskbar": true,
-        "focus": true
+        "focus": true,
+        "additionalBrowserArgs": "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection --autoplay-policy=no-user-gesture-required"
       }
     ],
     "security": {
