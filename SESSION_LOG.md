@@ -763,3 +763,12 @@ open/return/reopen each tile, Spider look.
 ### Next task
 
 Re-test on the VM: Telefe video, Spider with many cards (no overflow).
+
+## Session Report — Spider difficulty (1/2/4 suits) (branch `matiassimone/build-run-two`, 2026-09-13)
+
+Added the classic Spider difficulty selector (1 / 2 / 4 palos) in the game
+header. The deck is always 104 cards, split across the chosen number of suits
+(8 sets of one suit / 4 of two / 2 of four). Movement now requires a same-suit
+descending run to lift a group, and a completed K-A run must be same-suit
+(Spider rules); red suits render red. Verified all three modes build 104 cards
+with the right suit counts and no errors via Playwright.
