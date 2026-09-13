@@ -200,14 +200,15 @@ pub fn run() {
                 // The external web/game window going away (crash, or any close
                 // path other than return_home) is a "closed" signal for the
                 // frontend, so Home never stays stuck on the bar.
-                WindowEvent::Destroyed
-                    if window.label() == launchers::webview_app::EXTERNAL_LABEL =>
-                {
+                WindowEvent::Destroyed if launchers::webview_app::is_external(window.label()) => {
                     let app = window.app_handle().clone();
-                    if app
-                        .get_webview_window(launchers::webview_app::EXTERNAL_LABEL)
-                        .is_none()
-                    {
+                    // Only signal "returned" once no external window remains (a
+                    // replacement may have just been created).
+                    let any_external = app
+                        .webview_windows()
+                        .keys()
+                        .any(|label| launchers::webview_app::is_external(label));
+                    if !any_external {
                         kiosk::window_watcher::restore_home(&app);
                         kiosk::window_watcher::notify_closed(&app);
                     }

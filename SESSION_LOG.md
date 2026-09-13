@@ -716,3 +716,16 @@ tasks, autologon, scancode map, and a clear "installed / not installed" verdict)
 a self-cleaning note at the end of the smoke test, and an "Install vs smoke test"
 section at the top of the playbook. No code change to the reliability chain
 itself (it is verified green by CI checks 2, 3, 3b, 3c).
+
+## Session Report — external webview label race (branch `matiassimone/build-run-two`, 2026-09-13)
+
+VM logs showed the real bug: `launch_tile … failed: a webview with label
+`external` already exists`. `WebviewWindow::destroy` is async, so opening a
+second web tile / game right after closing one collided on the fixed label —
+Spider "did nothing" and Telefe would not reopen (Netflix works, it is not a
+webview). Fix: every external launch uses a unique label (`external-<millis>`);
+`close` sweeps all `external-*` windows and the Destroyed handler matches the
+prefix and only signals "returned" when none remain. The logs also showed
+several NoniOS instances from repeated manual launches ("F4 hotkey NOT
+registered: already registered") — harmless in production (task IgnoreNew +
+watchdog keep one), noted as a possible single-instance follow-up, not added.

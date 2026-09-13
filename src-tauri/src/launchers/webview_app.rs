@@ -8,13 +8,29 @@
 //! NoniOS while actually being reliable. NoniOS itself never loses its
 //! fullscreen, always-on-top lockdown behind it.
 
+use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use tauri::webview::PageLoadEvent;
 use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder};
 
 use crate::diag;
 
-/// Label of the external webview window. Shared with `close()`/`back()`.
-pub const EXTERNAL_LABEL: &str = "external";
+/// Label prefix for the external webview window. A fresh, unique label is used
+/// for every launch: `WebviewWindow::destroy` is asynchronous, so reusing one
+/// fixed label made a quick "close then open another tile" fail with
+/// "a webview with label `external` already exists". Unique labels sidestep the
+/// race entirely; [`is_external`] recognises them and [`close`] tears down any
+/// that linger.
+pub const EXTERNAL_PREFIX: &str = "external-";
+
+/// The label of the external window currently in use, if any.
+static CURRENT_LABEL: Mutex<Option<String>> = Mutex::new(None);
+
+/// True for any window this module created (see [`EXTERNAL_PREFIX`]).
+pub fn is_external(label: &str) -> bool {
+    label.starts_with(EXTERNAL_PREFIX)
+}
 
 /// Height in logical pixels of the strip kept for the bar. Must match
 /// `BAR_HEIGHT` in `src/screens/Home/InAppBar.tsx`.
@@ -89,7 +105,14 @@ fn content_rect(app: &AppHandle) -> (f64, f64) {
 fn build(app: &AppHandle, url: WebviewUrl, focus_video: bool) -> Result<(), String> {
     close(app);
     let (width, height) = content_rect(app);
-    let mut builder = WebviewWindowBuilder::new(app, EXTERNAL_LABEL, url)
+    let label = format!(
+        "{EXTERNAL_PREFIX}{}",
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_millis())
+            .unwrap_or(0)
+    );
+    let mut builder = WebviewWindowBuilder::new(app, &label, url)
         .title("NoniOS")
         .decorations(false)
         .resizable(false)
@@ -147,17 +170,23 @@ pub fn open_builtin(app: &AppHandle, game_id: &str) -> Result<(), String> {
     )
 }
 
-/// Closes the external webview if it exists. Idempotent.
+/// Closes the external webview if it exists. Idempotent. Sweeps every window
+/// this module created, so a lingering one (destroy is async) can never block
+/// the next launch.
 pub fn close(app: &AppHandle) {
-    if let Some(window) = app.get_webview_window(EXTERNAL_LABEL) {
-        let _ = window.destroy();
+    *CURRENT_LABEL.lock().unwrap() = None;
+    for (label, window) in app.webview_windows() {
+        if is_external(&label) {
+            let _ = window.destroy();
+        }
     }
 }
 
 /// Browser-style back inside the external webview (the bar's "Atrás"). A no-op
 /// when the page has no history yet (the tile was just opened).
 pub fn back(app: &AppHandle) {
-    match app.get_webview_window(EXTERNAL_LABEL) {
+    let label = CURRENT_LABEL.lock().unwrap().clone();
+    match label.and_then(|l| app.get_webview_window(&l)) {
         Some(window) => match window.eval("window.history.back()") {
             Ok(()) => diag::log("external back: history.back() dispatched"),
             Err(error) => diag::log(&format!("external back failed: {error}")),
