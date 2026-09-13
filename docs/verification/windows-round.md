@@ -11,6 +11,32 @@ This document is the rest: what only a human at a real, rebootable Windows
 10/11 machine can confirm. Budget: one afternoon. Do it in order; stop and
 report at the first failure of a **blocking** row.
 
+## PANIC BUTTON — putting the PC back to normal
+
+At any point, from an elevated PowerShell:
+
+```powershell
+C:\NoniOS\install\Uninstall-NoniOS.ps1 -NoniosExe C:\NoniOS\NoniOS.exe
+```
+
+This removes both Scheduled Tasks, turns autologon off, re-enables the Windows
+key, restores the sign-in-on-wake prompt, and brings back the taskbar — every
+machine change NoniOS made. CI asserts each of these is actually undone, so a
+real PC is never left in a broken state. To reach a desktop first: F4 →
+**Cerrar NoniOS**. If NoniOS is somehow stuck on top, **Ctrl+Alt+End** (the VM's
+Ctrl+Alt+Del, or plain Ctrl+Alt+Del on hardware) → Task Manager → end
+`NoniOS.exe`, then run the command above.
+
+**Turning off autostart without uninstalling:** Admin → General → the "Launch
+automatically" switch OFF disables both Scheduled Tasks and tells the watchdog
+to stay quiet, so NoniOS does not come back after a reboot. Note: NoniOS must be
+running **elevated** (i.e. launched by its own task, or via "Run as
+administrator") for the switch to change the tasks; if it is not, the switch
+still saves the setting (the watchdog obeys it) but the reboot-time task may not
+be disabled — use the uninstaller to be certain. The Windows key stays disabled
+until you uninstall; that is deliberate (autostart-off is for maintenance, not a
+full exit).
+
 ## Before you start: the machine
 
 - **Real hardware or a VM in Basic Session.** Hyper-V's *Enhanced Session* is an
@@ -135,7 +161,8 @@ C:\NoniOS\install\Install-NoniOS.ps1 -InstallDir C:\NoniOS
 | 5a'' | After the reboot in 5d, press the **Windows key** | Nothing — the Scancode Map is now in effect. This is the real Windows-key test (the hook cannot block it in a VM) |
 | 5b | Task Manager → end `NoniOS.exe` | Back within ~60 s (watchdog) |
 | 5b' | Freeze NoniOS: Task Manager → right-click `NoniOS.exe` → *Suspend* (Details tab, or Process Explorer) | Within ~60–120 s the watchdog logs `not responding`, kills it and NoniOS comes back |
-| 5c | Admin → autostart OFF, end NoniOS | Does NOT come back; `Get-ScheduledTask NoniOS*` shows both Disabled. Turn it back ON (start NoniOS.exe by hand, F4, switch) |
+| 5c | Admin → autostart OFF, end NoniOS | Does NOT come back; `Get-ScheduledTask NoniOS*` shows both Disabled |
+| 5c' | With autostart still OFF, **reboot** | The machine comes up to the normal Windows desktop — NoniOS does NOT take over. This is the escape hatch that keeps a real PC recoverable. Then turn autostart back ON for the rest of the test |
 | 5d | **Reboot** | Machine logs in by itself; NoniOS is on screen without anyone touching the keyboard |
 | 5e | Sleep (power menu is unreachable — use `rundll32 powrprof.dll,SetSuspendState 0,1,0` from an elevated prompt before installing tasks, or the power button) → wake | **No sign-in/lock screen**; NoniOS is in front (or within ~60 s) |
 | 5e' | Leave the machine idle past the screen-saver / screen-off timeout, then wake it | Again no lock screen, straight back to NoniOS |

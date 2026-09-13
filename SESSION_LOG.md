@@ -664,3 +664,22 @@ Re-test with the new artifact: Cerrar NoniOS, Telefe embedded + Atrás, keyboard
 ### Next task
 
 Re-test on the VM: install tasks, reboot, then press the Windows key — it should do nothing once the Scancode Map is active.
+
+## Session Report — autostart-off / restore safety (branch `matiassimone/build-run-two`, 2026-09-13)
+
+Scope: before real-hardware testing, verify the machine can always be recovered.
+
+- **Autostart OFF is reboot-safe (new CI check 3c):** `set_autostart(false)`
+  disables both Scheduled Tasks (schtasks /Change /DISABLE); CI asserts both
+  report State=Disabled, so a reboot does not relaunch NoniOS. The watchdog also
+  obeys `autostart:false` in config.json (check 3b), so the switch holds even if
+  NoniOS was running unelevated and could not change the tasks.
+- **Uninstaller = full restore (new CI checks in teardown):** after
+  Uninstall-NoniOS.ps1 -NoniosExe, CI asserts both tasks removed, AutoAdminLogon
+  0, Scancode Map gone (Windows key back), NoLockScreen gone, CONSOLELOCK back to
+  1, taskbar restored. This is the tester's panic button, now proven.
+- Playbook: added a prominent PANIC BUTTON section and a 5c' reboot row.
+
+### Next task
+
+Real-hardware round using the artifact; the machine is recoverable at every step.

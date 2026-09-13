@@ -178,6 +178,23 @@ public static class NoniKbd {
     Check 'NoniOS was NOT relaunched while autostart is off' (-not (Get-NoniosProcess))
     if ($hadConfig) { Move-Item "$configPath.smoke-backup" $configPath -Force } else { Remove-Item $configPath -Force }
 
+    # ---- 3c. Admin "Launch automatically" OFF disables both tasks -----------
+    # This is what set_autostart(false) does (schtasks /Change /DISABLE). It is
+    # the reboot-safety switch: with both tasks disabled, a reboot does not bring
+    # NoniOS back, so the tester can never be locked out of a real machine.
+    Write-Host '== 3c. disabling autostart leaves both scheduled tasks Disabled'
+    foreach ($t in @('NoniOS', 'NoniOS Watchdog')) {
+        & schtasks /Change /TN $t /DISABLE | Out-Null
+    }
+    $mainState = (Get-ScheduledTask -TaskName 'NoniOS').State
+    $wdState = (Get-ScheduledTask -TaskName 'NoniOS Watchdog').State
+    Check "task 'NoniOS' is Disabled after autostart off" ($mainState -eq 'Disabled') "state $mainState"
+    Check "task 'NoniOS Watchdog' is Disabled after autostart off" ($wdState -eq 'Disabled') "state $wdState"
+    foreach ($t in @('NoniOS', 'NoniOS Watchdog')) {
+        & schtasks /Change /TN $t /ENABLE | Out-Null
+    }
+    Check "task 'NoniOS' is Ready again after autostart on" ((Get-ScheduledTask -TaskName 'NoniOS').State -eq 'Ready')
+
     # ---- 4. Autologon shape (throwaway password) ---------------------------
     Write-Host '== 4. configure-autologon writes registry + LSA secret, never plaintext'
     # Some machines (GitHub's runner images among them) already carry a plaintext
@@ -204,9 +221,18 @@ public static class NoniKbd {
     Check 'AutoAdminLogon = 0 after disable' ((Get-ItemProperty $winlogon).AutoAdminLogon -eq '0')
 }
 finally {
-    Write-Host '== teardown'
+    Write-Host '== teardown + full-restore verification'
     Stop-Nonios
     & $uninstallScript -NoniosExe $nonios
+    # The uninstaller is the tester's "put my PC back to normal" button. Prove it
+    # actually undoes every machine change, so a real PC is never left broken.
+    Check 'task NoniOS removed' (-not (Get-ScheduledTask -TaskName 'NoniOS' -ErrorAction SilentlyContinue))
+    Check 'task NoniOS Watchdog removed' (-not (Get-ScheduledTask -TaskName 'NoniOS Watchdog' -ErrorAction SilentlyContinue))
+    Check 'AutoAdminLogon disabled' ((Get-ItemProperty $winlogon -ErrorAction SilentlyContinue).AutoAdminLogon -eq '0')
+    Check 'Windows key re-enabled (Scancode Map removed)' (-not (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout' -ErrorAction SilentlyContinue).'Scancode Map')
+    Check 'lock screen policy removed' (-not (Get-ItemProperty 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\Personalization' -ErrorAction SilentlyContinue).NoLockScreen)
+    $lockBack = (& powercfg /Q SCHEME_CURRENT SUB_NONE 0e796bdb-100d-47d6-a2d5-f7d2daa51f51 2>&1) -join "`n"
+    Check 'sign-in on wake restored (CONSOLELOCK AC index 1)' ($lockBack -match 'AC Power Setting Index: 0x00000001')
 }
 
 if ($script:failed -gt 0) {
