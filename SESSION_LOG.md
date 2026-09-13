@@ -705,3 +705,14 @@ Real-hardware round using the artifact; the machine is recoverable at every step
 
 Re-test on the VM: Telefe (video fullscreen + sound, bar, return, second open,
 F4 → Admin), and add + play Spider.
+
+## Session Report — autostart footgun (branch `matiassimone/build-run-two`, 2026-09-13)
+
+User force-shut the PC after the Telefe breakage and NoniOS did not autostart.
+Root cause is almost certainly that autostart was never installed: the smoke test
+self-cleans (registers then removes tasks + autologon) and manual NoniOS.exe
+launches install nothing. Added scripts/install/Get-NoniOS-Status.ps1 (read-only:
+tasks, autologon, scancode map, and a clear "installed / not installed" verdict),
+a self-cleaning note at the end of the smoke test, and an "Install vs smoke test"
+section at the top of the playbook. No code change to the reliability chain
+itself (it is verified green by CI checks 2, 3, 3b, 3c).

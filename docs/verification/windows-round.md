@@ -79,6 +79,19 @@ Confirm the build is the one you think it is: `F4` → Admin sidebar must show
 **General / Accesos / Acceso remoto** and both **Volver a Home** and **Cerrar
 NoniOS**. If Admin is a placeholder, you have an old binary.
 
+## Install vs. smoke test — read this first
+
+- **Smoke-Test.ps1 installs NOTHING permanently.** It registers the tasks and
+  autologon, tests them, and REMOVES them again — a clean pre-flight. After it,
+  autostart is NOT set up.
+- **Install-NoniOS.ps1 is the real install.** It leaves the two Scheduled Tasks
+  and autologon in place, so NoniOS starts on boot. Do the autostart/reboot
+  tests (section 5) with THIS, not the smoke test.
+- **Check any time:** `powershell C:\NoniOS\install\Get-NoniOS-Status.ps1`
+  prints whether autostart is actually installed.
+- Launching `NoniOS.exe` by hand (double-click) tests the UI but never sets up
+  autostart either.
+
 ## 1. Pre-flight: run the smoke test yourself (5 min)
 
 From an **elevated** PowerShell:

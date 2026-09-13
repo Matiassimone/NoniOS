@@ -240,3 +240,7 @@ if ($script:failed -gt 0) {
     exit 1
 }
 Write-Host 'all checks passed'
+Write-Host ''
+Write-Host 'NOTE: this pre-flight registered and then REMOVED the tasks/autologon,'
+Write-Host 'so nothing is installed now. To make NoniOS start on boot, run'
+Write-Host 'Install-NoniOS.ps1 (elevated) and leave it in place.'
