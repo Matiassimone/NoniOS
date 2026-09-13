@@ -84,14 +84,32 @@ try {
     # Windows session. Expected: Win (down+up) 2, Ctrl+Esc 2 (Esc only), Alt+Tab
     # 2 (Tab only), Alt+F4 2 = 8. A plain F4 afterwards makes NoniOS log the count.
     Write-Host '== 1b. keyboard hook blocks Win / Ctrl+Esc / Alt+Tab / Alt+F4'
+    # SendInput (not keybd_event): the modern injection API. Uses the extended-key
+    # flag for the Windows keys, which keybd_event does not, so LWIN actually
+    # reaches the low-level hook.
     Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 public static class NoniKbd {
-    [DllImport("user32.dll")] static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
-    public static void Down(byte vk) { keybd_event(vk, 0, 0, UIntPtr.Zero); System.Threading.Thread.Sleep(40); }
-    public static void Up(byte vk) { keybd_event(vk, 0, 2, UIntPtr.Zero); System.Threading.Thread.Sleep(40); }
-    public static void Tap(byte vk) { Down(vk); Up(vk); }
+    [StructLayout(LayoutKind.Sequential)]
+    struct KEYBDINPUT { public ushort wVk; public ushort wScan; public uint dwFlags; public uint time; public IntPtr dwExtraInfo; }
+    [StructLayout(LayoutKind.Sequential)]
+    struct INPUT { public uint type; public KEYBDINPUT ki; public int pad; }
+    [DllImport("user32.dll", SetLastError = true)] static extern uint SendInput(uint n, INPUT[] pInputs, int cb);
+    const uint INPUT_KEYBOARD = 1;
+    const uint KEYEVENTF_KEYUP = 2;
+    const uint KEYEVENTF_EXTENDEDKEY = 1;
+    static bool IsExtended(ushort vk) { return vk == 0x5B || vk == 0x5C; } // L/R Win are extended keys
+    static void Send(ushort vk, bool up) {
+        var i = new INPUT { type = INPUT_KEYBOARD };
+        i.ki.wVk = vk;
+        i.ki.dwFlags = (up ? KEYEVENTF_KEYUP : 0) | (IsExtended(vk) ? KEYEVENTF_EXTENDEDKEY : 0);
+        SendInput(1, new[] { i }, Marshal.SizeOf(typeof(INPUT)));
+        System.Threading.Thread.Sleep(40);
+    }
+    public static void Down(ushort vk) { Send(vk, false); }
+    public static void Up(ushort vk) { Send(vk, true); }
+    public static void Tap(ushort vk) { Down(vk); Up(vk); }
 }
 '@
     # Read the running counter by tapping F4 (F4 alone isn't blocked) and parsing
