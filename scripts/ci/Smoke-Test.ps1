@@ -78,6 +78,37 @@ try {
     Check 'log has "kiosk lockdown engaged"' ($log -match 'kiosk lockdown engaged') 'keyboard hook or taskbar failed — see log'
     Check 'log has "F4 admin hotkey registered"' ($log -match 'F4 admin hotkey registered')
 
+    # ---- 1b. Keyboard hook: inject the blocked combinations, read the counter --
+    # keybd_event goes through WH_KEYBOARD_LL like real keys (LLKHF_INJECTED set),
+    # so this proves the hook receives and swallows each combination on a real
+    # Windows session. Expected: Win (down+up) 2, Ctrl+Esc 2 (Esc only), Alt+Tab
+    # 2 (Tab only), Alt+F4 2 = 8. A plain F4 afterwards makes NoniOS log the count.
+    Write-Host '== 1b. keyboard hook blocks Win / Ctrl+Esc / Alt+Tab / Alt+F4'
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class NoniKbd {
+    [DllImport("user32.dll")] static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+    public static void Down(byte vk) { keybd_event(vk, 0, 0, UIntPtr.Zero); System.Threading.Thread.Sleep(40); }
+    public static void Up(byte vk) { keybd_event(vk, 0, 2, UIntPtr.Zero); System.Threading.Thread.Sleep(40); }
+    public static void Tap(byte vk) { Down(vk); Up(vk); }
+}
+'@
+    [NoniKbd]::Tap(0x5B)                                           # Win
+    [NoniKbd]::Down(0x11); [NoniKbd]::Tap(0x1B); [NoniKbd]::Up(0x11)   # Ctrl+Esc
+    [NoniKbd]::Down(0x12); [NoniKbd]::Tap(0x09); [NoniKbd]::Up(0x12)   # Alt+Tab
+    [NoniKbd]::Down(0x12); [NoniKbd]::Tap(0x73); [NoniKbd]::Up(0x12)   # Alt+F4
+    Start-Sleep -Milliseconds 500
+    [NoniKbd]::Tap(0x73)                                           # F4 -> log line
+    Start-Sleep -Seconds 2
+    $log = Get-Content $noniosLog -Raw
+    $f4 = [regex]::Matches($log, 'F4 pressed \(keyboard hook has blocked (\d+) keystrokes so far\)')
+    $blocked = if ($f4.Count -gt 0) { [int]$f4[$f4.Count - 1].Groups[1].Value } else { -1 }
+    Write-Host "hook blocked $blocked keystrokes (expected 8)"
+    Check 'F4 hotkey fired for injected input (log line present)' ($f4.Count -gt 0)
+    Check 'keyboard hook blocked all 8 injected keystrokes' ($blocked -eq 8) "got $blocked"
+    Check 'NoniOS still alive after Alt+F4' ([bool](Get-NoniosProcess))
+
     # ---- 2. Scheduled Tasks -------------------------------------------------
     Write-Host '== 2. register Scheduled Tasks (no autologon)'
     & $installScript -InstallDir $InstallDir -SkipAutologon
