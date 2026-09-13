@@ -3,9 +3,10 @@ import { useState, type ReactNode } from 'react'
 import { AppWindow, Globe } from 'lucide-react'
 
 import { NoniButton } from '@/components/NoniButton'
-import { NoniInput } from '@/components/NoniInput'
 import { NoniField } from '@/components/NoniField'
+import { NoniInput } from '@/components/NoniInput'
 import { NoniModal } from '@/components/NoniModal'
+import { NoniSwitch } from '@/components/NoniSwitch'
 import { useConfig } from '@/hooks/useConfig'
 import { useTranslation } from '@/i18n/useTranslation'
 import { TargetKind, TileKind, type IconKey, type Tile } from '@/lib/config'
@@ -37,12 +38,14 @@ export function AddTileModal({
   const [url, setUrl] = useState('')
   const [label, setLabel] = useState('')
   const [icon, setIcon] = useState<IconKey>('globe')
+  const [focusVideo, setFocusVideo] = useState(false)
 
   const reset = () => {
     setStep(Step.TYPE)
     setUrl('')
     setLabel('')
     setIcon('globe')
+    setFocusVideo(false)
   }
   const close = () => {
     reset()
@@ -57,6 +60,7 @@ export function AddTileModal({
       icon: 'play',
       target: app.appId,
       targetKind: TargetKind.AUMID,
+      focusVideo: false,
     })
     close()
   }
@@ -71,6 +75,7 @@ export function AddTileModal({
       icon,
       target: normaliseUrl(url),
       targetKind: TargetKind.URL,
+      focusVideo,
     })
     close()
   }
@@ -148,6 +153,7 @@ export function AddTileModal({
           <NoniField label={t('admin.tiles.addModal.iconLabel')}>
             <IconPicker value={icon} onChange={setIcon} />
           </NoniField>
+          <FocusVideoField value={focusVideo} onChange={setFocusVideo} />
         </div>
       )}
     </NoniModal>
@@ -179,5 +185,27 @@ function TypeCard({
         <span className="text-[13px] text-muted">{body}</span>
       </span>
     </button>
+  )
+}
+
+/** The "show only the video" switch, shared by the add and edit web forms. */
+export function FocusVideoField({
+  value,
+  onChange,
+}: {
+  value: boolean
+  onChange: (next: boolean) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="flex items-start justify-between gap-6 rounded-[11px] border border-border bg-surface px-4 py-3.5">
+      <div className="flex flex-col gap-1">
+        <span className="text-sm font-semibold text-ink">
+          {t('admin.tiles.addModal.focusVideoLabel')}
+        </span>
+        <span className="text-[13px] text-muted">{t('admin.tiles.addModal.focusVideoHint')}</span>
+      </div>
+      <NoniSwitch checked={value} onCheckedChange={onChange} />
+    </div>
   )
 }

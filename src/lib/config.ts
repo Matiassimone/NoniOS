@@ -35,6 +35,9 @@ export const tileSchema = z.object({
   icon: z.enum(ICON_KEYS).catch('globe'),
   target: z.string(),
   targetKind: z.enum([TargetKind.AUMID, TargetKind.EXE, TargetKind.URL]),
+  // Web tiles: show the page's main video full screen with sound, hide the rest
+  // (e.g. Telefe live). Defaulted so older config files stay valid.
+  focusVideo: z.boolean().default(false),
 })
 export type Tile = z.infer<typeof tileSchema>
 
@@ -71,6 +74,7 @@ export const DEFAULT_CONFIG: Config = {
       icon: 'play',
       target: '',
       targetKind: TargetKind.AUMID,
+      focusVideo: false,
     },
     {
       id: 'telefe',
@@ -79,6 +83,7 @@ export const DEFAULT_CONFIG: Config = {
       icon: 'tv',
       target: 'https://www.mitelefe.com/telefe-en-vivo',
       targetKind: TargetKind.URL,
+      focusVideo: true,
     },
   ],
   anydeskId: null,

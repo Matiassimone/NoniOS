@@ -78,6 +78,9 @@ export const es = {
   'admin.tiles.addModal.labelHint': 'La palabra que ve {name} debajo del ícono.',
   'admin.tiles.addModal.labelPlaceholder': 'YouTube',
   'admin.tiles.addModal.iconLabel': 'Ícono',
+  'admin.tiles.addModal.focusVideoLabel': 'Mostrar solo el video',
+  'admin.tiles.addModal.focusVideoHint':
+    'Abre el video de la página a pantalla completa, con sonido y sin el resto. Ideal para canales en vivo.',
   'admin.tiles.addModal.cancel': 'Cancelar',
   'admin.tiles.addModal.confirm': 'Agregar acceso',
   'admin.tiles.addModal.back': 'Atrás',

@@ -5,8 +5,9 @@ import { NoniInput } from '@/components/NoniInput'
 import { NoniField } from '@/components/NoniField'
 import { NoniModal } from '@/components/NoniModal'
 import { useTranslation } from '@/i18n/useTranslation'
-import type { IconKey, Tile } from '@/lib/config'
+import { TileKind, type IconKey, type Tile } from '@/lib/config'
 
+import { FocusVideoField } from './AddTileModal'
 import { IconPicker } from './IconPicker'
 
 /** Edit modal: label + icon (DESIGN.md -> Admin -> Tiles -> Edit modal). */
@@ -22,9 +23,10 @@ export function TileEditorModal({
   const { t } = useTranslation()
   const [label, setLabel] = useState(tile.name)
   const [icon, setIcon] = useState<IconKey>(tile.icon)
+  const [focusVideo, setFocusVideo] = useState(tile.focusVideo)
 
   const save = () => {
-    onSave({ ...tile, name: label.trim() || tile.name, icon })
+    onSave({ ...tile, name: label.trim() || tile.name, icon, focusVideo })
     onClose()
   }
 
@@ -56,6 +58,9 @@ export function TileEditorModal({
         <NoniField label={t('admin.tiles.addModal.iconLabel')}>
           <IconPicker value={icon} onChange={setIcon} />
         </NoniField>
+        {tile.kind === TileKind.WEB && (
+          <FocusVideoField value={focusVideo} onChange={setFocusVideo} />
+        )}
       </div>
     </NoniModal>
   )

@@ -36,7 +36,7 @@ pub fn launch(app: &AppHandle, tile: &Tile) -> Result<(), LaunchError> {
     }
     match tile.kind.as_str() {
         "web" => {
-            webview_app::open(app, &tile.target).map_err(LaunchError::Web)?;
+            webview_app::open(app, &tile.target, tile.focus_video).map_err(LaunchError::Web)?;
             // Our own window exists as soon as `open` returns: that is the
             // "shown" signal for web tiles (no foreground watcher involved).
             window_watcher::notify_shown(app);

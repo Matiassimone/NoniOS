@@ -51,6 +51,11 @@ pub struct Tile {
     pub target: String,
     /// `"aumid"`, `"exe"` or `"url"` — tells `launchers/` which strategy to use.
     pub target_kind: String,
+    /// Web tiles only: open the page's main video full screen with sound and
+    /// hide the rest of the page (e.g. Telefe live, to spare the end user the
+    /// ad-heavy site). Ignored for app tiles.
+    #[serde(default)]
+    pub focus_video: bool,
 }
 
 impl Default for User {
@@ -81,6 +86,7 @@ impl Default for Config {
                     icon: "play".into(),
                     target: String::new(),
                     target_kind: "aumid".into(),
+                    focus_video: false,
                 },
                 Tile {
                     id: "telefe".into(),
@@ -89,6 +95,7 @@ impl Default for Config {
                     icon: "tv".into(),
                     target: "https://www.mitelefe.com/telefe-en-vivo".into(),
                     target_kind: "url".into(),
+                    focus_video: true,
                 },
             ],
             anydesk_id: None,

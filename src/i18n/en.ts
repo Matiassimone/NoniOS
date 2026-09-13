@@ -78,6 +78,9 @@ export const en = {
   'admin.tiles.addModal.labelHint': 'The word {name} sees under the icon.',
   'admin.tiles.addModal.labelPlaceholder': 'YouTube',
   'admin.tiles.addModal.iconLabel': 'Icon',
+  'admin.tiles.addModal.focusVideoLabel': 'Show only the video',
+  'admin.tiles.addModal.focusVideoHint':
+    "Opens the page's video full screen, with sound and nothing else. Best for live channels.",
   'admin.tiles.addModal.cancel': 'Cancel',
   'admin.tiles.addModal.confirm': 'Add tile',
   'admin.tiles.addModal.back': 'Back',
