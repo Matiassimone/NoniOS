@@ -112,6 +112,7 @@ public static class NoniKbd {
     $b = Get-Blocked
     [NoniKbd]::Down(0x12); [NoniKbd]::Tap(0x73); [NoniKbd]::Up(0x12); $altF4 = (Get-Blocked) - $b
     Write-Host "per-combo blocked -> Win:$win Ctrl+Esc:$ctrlEsc Alt+Tab:$altTab Alt+F4:$altF4 (each expected 2)"
+    Write-Host ('last hook log: ' + (([regex]::Matches((Get-Content $noniosLog -Raw), 'F4 pressed[^\r\n]*') | Select-Object -Last 1).Value))
     Check 'Win key blocked (2)' ($win -eq 2) "got $win"
     Check 'Ctrl+Esc blocked (2)' ($ctrlEsc -eq 2) "got $ctrlEsc"
     Check 'Alt+Tab blocked (2)' ($altTab -eq 2) "got $altTab"

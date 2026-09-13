@@ -24,8 +24,9 @@ pub fn register(app: &AppHandle) -> Result<(), String> {
             if event.state() == ShortcutState::Pressed {
                 // Diagnostics: proves on a test machine whether the keyboard hook
                 // is seeing input at all (see `kiosk::blocked_keystrokes`).
+                let (seen, win_seen) = super::keyboard_diag();
                 crate::diag::log(&format!(
-                    "F4 pressed (keyboard hook has blocked {} keystrokes so far)",
+                    "F4 pressed (keyboard hook has blocked {} keystrokes so far; seen {seen} keys, {win_seen} win-key events)",
                     super::blocked_keystrokes()
                 ));
                 // Fire-and-forget: a failed emit is one missed toggle, not a crash.

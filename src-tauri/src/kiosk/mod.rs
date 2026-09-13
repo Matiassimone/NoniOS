@@ -73,6 +73,18 @@ pub fn blocked_keystrokes() -> u32 {
     keyboard_hook::blocked_count()
 }
 
+/// TEMP diagnostics: (total key events seen, Win-key events seen).
+#[cfg(windows)]
+pub fn keyboard_diag() -> (u32, u32) {
+    keyboard_hook::diag_counts()
+}
+
+/// Dev-host stub.
+#[cfg(not(windows))]
+pub fn keyboard_diag() -> (u32, u32) {
+    (0, 0)
+}
+
 /// Dev-host stub — see the Windows [`blocked_keystrokes`].
 #[cfg(not(windows))]
 pub fn blocked_keystrokes() -> u32 {
