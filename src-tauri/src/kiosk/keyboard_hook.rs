@@ -63,19 +63,6 @@ pub fn blocked_count() -> u32 {
 static CTRL_DOWN: AtomicBool = AtomicBool::new(false);
 static ALT_DOWN: AtomicBool = AtomicBool::new(false);
 
-// TEMP diagnostics: total key events seen by the hook, and how many were a Win
-// key (0x5B/0x5C) regardless of block decision. Exposed via `diag_counts`.
-static SEEN: AtomicU32 = AtomicU32::new(0);
-static WIN_SEEN: AtomicU32 = AtomicU32::new(0);
-
-/// TEMP: (total key events seen, Win-key events seen) since install.
-pub fn diag_counts() -> (u32, u32) {
-    (
-        SEEN.load(Ordering::Relaxed),
-        WIN_SEEN.load(Ordering::Relaxed),
-    )
-}
-
 /// Installs the global low-level keyboard hook on a dedicated thread and blocks
 /// until that thread reports whether installation succeeded.
 pub fn install() -> Result<(), KioskError> {
