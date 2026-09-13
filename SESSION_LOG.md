@@ -683,3 +683,25 @@ Scope: before real-hardware testing, verify the machine can always be recovered.
 ### Next task
 
 Real-hardware round using the artifact; the machine is recoverable at every step.
+
+## Session Report — embedded-webview regression fix + Spider (branch `matiassimone/build-run-two`, 2026-09-13)
+
+### What happened
+
+- **Regression from the child-webview change:** on Windows a child webview added
+  via `Window::add_child` renders BEHIND the main webview, so opening Telefe
+  showed Home with the bar (no video) and left F4 broken. Reverted to a separate
+  borderless, always-on-top, taskbar-skipping webview window positioned below the
+  bar — the approach that worked in round 3 — which reads as embedded but renders
+  reliably. CloseRequested is now scoped to the main window only; a Destroyed
+  event on the external window emits `external-app-closed` so Home never sticks.
+- **focusVideo** (open the page's main video fullscreen with sound, hide the
+  rest) and the **Atrás/Volver bar** are kept; Telefe seed has focusVideo on.
+- **Spider Solitaire** bundled offline (`public/games/spider.html`, one suit,
+  tap-to-move, large cards, undo/deal/win), launched via a new `builtin`
+  targetKind through `WebviewUrl::App`; added from Admin → Tiles → "Un juego".
+
+### Next task
+
+Re-test on the VM: Telefe (video fullscreen + sound, bar, return, second open,
+F4 → Admin), and add + play Spider.

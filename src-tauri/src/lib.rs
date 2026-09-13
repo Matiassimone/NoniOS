@@ -184,14 +184,35 @@ pub fn run() {
             return_home,
             external_back
         ])
-        .on_window_event(|_window, event| {
-            // The end user must never close the kiosk (Alt+F4, the hidden window
-            // controls). Reliable, cross-platform half of Alt+F4 handling; the
-            // keyboard hook also swallows the keystroke.
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                if !kiosk::ALLOW_USER_CLOSE {
-                    api.prevent_close();
+        .on_window_event(|window, event| {
+            let is_main = window.label() == "main";
+            match event {
+                // The end user must never close the kiosk (Alt+F4, the hidden
+                // window controls). Reliable, cross-platform half of Alt+F4
+                // handling; the keyboard hook also swallows the keystroke. Only
+                // the main window is protected — the external web/game window is
+                // closed on purpose via `return_home`.
+                WindowEvent::CloseRequested { api, .. } if is_main => {
+                    if !kiosk::ALLOW_USER_CLOSE {
+                        api.prevent_close();
+                    }
                 }
+                // The external web/game window going away (crash, or any close
+                // path other than return_home) is a "closed" signal for the
+                // frontend, so Home never stays stuck on the bar.
+                WindowEvent::Destroyed
+                    if window.label() == launchers::webview_app::EXTERNAL_LABEL =>
+                {
+                    let app = window.app_handle().clone();
+                    if app
+                        .get_webview_window(launchers::webview_app::EXTERNAL_LABEL)
+                        .is_none()
+                    {
+                        kiosk::window_watcher::restore_home(&app);
+                        kiosk::window_watcher::notify_closed(&app);
+                    }
+                }
+                _ => {}
             }
         })
         .setup(|app| {
