@@ -4,7 +4,9 @@
 //! ("Atrás" / "Volver al inicio"), so the end user always has the way back in
 //! front of them and NoniOS never loses its always-on-top, fullscreen lockdown.
 
+use std::path::PathBuf;
 use tauri::webview::PageLoadEvent;
+
 use tauri::{AppHandle, LogicalPosition, LogicalSize, Manager, Url, WebviewBuilder, WebviewUrl};
 
 use crate::diag;
@@ -106,6 +108,39 @@ pub fn open(app: &AppHandle, url: &str, focus_video: bool) -> Result<(), String>
             .initialization_script(FOCUS_VIDEO_SCRIPT);
     }
 
+    window
+        .add_child(
+            builder,
+            LogicalPosition::new(0.0, BAR_HEIGHT),
+            LogicalSize::new(width, (height - BAR_HEIGHT).max(200.0)),
+        )
+        .map(|_| ())
+        .map_err(|error| error.to_string())
+}
+
+/// Opens a game/page bundled with NoniOS (served from the app itself, offline)
+/// in the child webview below the bar. `game_id` names a file under `games/`
+/// in the frontend bundle, e.g. `"spider"` -> `games/spider.html`.
+pub fn open_builtin(app: &AppHandle, game_id: &str) -> Result<(), String> {
+    // Guard against a target that is not a plain id (no slashes / dots), so a
+    // tile can only ever open a bundled game, never an arbitrary app path.
+    if !game_id
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(format!("invalid builtin game id: {game_id}"));
+    }
+    let window = app
+        .get_window("main")
+        .ok_or_else(|| "main window missing".to_string())?;
+    let scale = window.scale_factor().unwrap_or(1.0);
+    let (width, height) = match window.inner_size() {
+        Ok(size) => (size.width as f64 / scale, size.height as f64 / scale),
+        Err(_) => (1920.0, 1080.0),
+    };
+    close(app);
+    let path = PathBuf::from(format!("games/{game_id}.html"));
+    let builder = WebviewBuilder::new(EXTERNAL_LABEL, WebviewUrl::App(path));
     window
         .add_child(
             builder,

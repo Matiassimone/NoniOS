@@ -24,7 +24,7 @@ export type Locale = (typeof Locale)[keyof typeof Locale]
 export const TileKind = { APP: 'app', WEB: 'web' } as const
 export type TileKind = (typeof TileKind)[keyof typeof TileKind]
 
-export const TargetKind = { AUMID: 'aumid', EXE: 'exe', URL: 'url' } as const
+export const TargetKind = { AUMID: 'aumid', EXE: 'exe', URL: 'url', BUILTIN: 'builtin' } as const
 export type TargetKind = (typeof TargetKind)[keyof typeof TargetKind]
 
 export const tileSchema = z.object({
@@ -34,7 +34,7 @@ export const tileSchema = z.object({
   // An unknown icon key must not invalidate the whole config — fall back to a glyph.
   icon: z.enum(ICON_KEYS).catch('globe'),
   target: z.string(),
-  targetKind: z.enum([TargetKind.AUMID, TargetKind.EXE, TargetKind.URL]),
+  targetKind: z.enum([TargetKind.AUMID, TargetKind.EXE, TargetKind.URL, TargetKind.BUILTIN]),
   // Web tiles: show the page's main video full screen with sound, hide the rest
   // (e.g. Telefe live). Defaulted so older config files stay valid.
   focusVideo: z.boolean().default(false),

@@ -36,8 +36,14 @@ pub fn launch(app: &AppHandle, tile: &Tile) -> Result<(), LaunchError> {
     }
     match tile.kind.as_str() {
         "web" => {
-            webview_app::open(app, &tile.target, tile.focus_video).map_err(LaunchError::Web)?;
-            // Our own window exists as soon as `open` returns: that is the
+            if tile.target_kind == "builtin" {
+                // A game (or any page) bundled with NoniOS, served from the app
+                // itself — offline, no ads, no install (e.g. Spider Solitaire).
+                webview_app::open_builtin(app, &tile.target).map_err(LaunchError::Web)?;
+            } else {
+                webview_app::open(app, &tile.target, tile.focus_video).map_err(LaunchError::Web)?;
+            }
+            // Our own webview exists as soon as `open` returns: that is the
             // "shown" signal for web tiles (no foreground watcher involved).
             window_watcher::notify_shown(app);
             Ok(())

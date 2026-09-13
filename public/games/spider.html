@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <title>Solitario Spider</title>
+    <style>
+      /*
+       * Offline, ad-free Spider Solitaire (one suit) bundled with NoniOS.
+       * Tap-to-move (no drag), large cards — built for reduced dexterity.
+       * Self-contained: no network, no external assets. Palette mirrors
+       * NoniUI "Tinta + Musgo" but this file stands alone by design.
+       */
+      :root {
+        --paper: #f2f0e9;
+        --surface: #fbfaf6;
+        --ink: #14171a;
+        --ink2: #5c584e;
+        --muted: #8a8579;
+        --moss: #3f5d42;
+        --border: #dad7cb;
+        --card-red: #a23b2e;
+        --sel: #3f5d42;
+      }
+      * {
+        box-sizing: border-box;
+        -webkit-user-select: none;
+        user-select: none;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: 'Geist Variable', ui-sans-serif, system-ui, 'Segoe UI', Roboto, sans-serif;
+        overflow: hidden;
+        touch-action: manipulation;
+      }
+      #app {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        padding: 20px 24px 24px;
+      }
+      header {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+      h1 {
+        font-size: 28px;
+        font-weight: 600;
+        margin: 0;
+        letter-spacing: -0.01em;
+      }
+      .controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .status {
+        font-size: 18px;
+        color: var(--ink2);
+      }
+      button.action {
+        font: inherit;
+        font-size: 18px;
+        font-weight: 600;
+        cursor: pointer;
+        background: var(--moss);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 22px;
+      }
+      button.action.secondary {
+        background: var(--surface);
+        color: var(--ink);
+        border: 1px solid var(--border);
+      }
+      button.action:disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      #board {
+        flex: 1 1 auto;
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 14px;
+        align-content: start;
+        min-height: 0;
+      }
+      .col {
+        position: relative;
+        border-radius: 14px;
+        min-height: 140px;
+        background: rgba(63, 93, 66, 0.06);
+        padding: 6px;
+      }
+      .col.drop {
+        outline: 3px solid var(--moss);
+        outline-offset: 2px;
+      }
+      .card {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 5 / 7;
+        border-radius: 12px;
+        margin-top: -78px;
+        border: 1px solid var(--border);
+        background: var(--surface);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 8px 10px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .col .card:first-child {
+        margin-top: 0;
+      }
+      .card.down {
+        background: var(--moss);
+        border-color: var(--moss);
+      }
+      .card.down::after {
+        content: '';
+        position: absolute;
+        inset: 10px;
+        border-radius: 8px;
+        background: repeating-linear-gradient(
+          45deg,
+          rgba(255, 255, 255, 0.1) 0 8px,
+          transparent 8px 16px
+        );
+      }
+      .card .rank {
+        font-size: clamp(16px, 2vw, 30px);
+        line-height: 1;
+        color: var(--ink);
+      }
+      .card .suit {
+        font-size: clamp(14px, 1.6vw, 24px);
+        line-height: 1;
+        color: var(--ink);
+      }
+      .card.sel {
+        outline: 4px solid var(--sel);
+        outline-offset: 0;
+      }
+      .card.hint {
+        box-shadow: 0 0 0 3px var(--moss);
+      }
+      #foot {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-top: 16px;
+      }
+      #stock {
+        display: flex;
+        gap: 6px;
+        cursor: pointer;
+        padding: 8px;
+        border-radius: 12px;
+      }
+      #stock.disabled {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .pip {
+        width: 44px;
+        height: 60px;
+        border-radius: 8px;
+        background: var(--moss);
+        border: 1px solid var(--moss);
+      }
+      .done {
+        display: flex;
+        gap: 6px;
+        margin-left: auto;
+      }
+      .done .run {
+        width: 34px;
+        height: 48px;
+        border-radius: 7px;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--moss);
+        font-weight: 700;
+      }
+      #win {
+        position: fixed;
+        inset: 0;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        gap: 18px;
+        background: rgba(242, 240, 233, 0.92);
+        z-index: 10;
+      }
+      #win.show {
+        display: flex;
+      }
+      #win .msg {
+        font-size: 44px;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <h1>Solitario</h1>
+        <div class="controls">
+          <span class="status" id="status"></span>
+          <button class="action secondary" id="undo">Deshacer</button>
+          <button class="action" id="new">Juego nuevo</button>
+        </div>
+      </header>
+      <div id="board"></div>
+      <div id="foot">
+        <div id="stock" title="Repartir"></div>
+        <div class="done" id="done"></div>
+      </div>
+    </div>
+    <div id="win">
+      <div class="msg">¡Ganaste! 🎉</div>
+      <button class="action" onclick="game.deal()">Jugar otra vez</button>
+    </div>
+    <script>
+      // One-suit Spider: 2 decks of 13 spades x4 = 104 cards, 10 columns.
+      var SUIT = '♠'
+      var RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
+      var byId = function (id) {
+        return document.getElementById(id)
+      }
+
+      var game = {
+        cols: [],
+        stock: [],
+        completed: 0,
+        sel: null,
+        history: [],
+
+        deal: function () {
+          var deck = []
+          for (var d = 0; d < 8; d++) for (var r = 0; r < 13; r++) deck.push({ r: r, up: false })
+          for (var i = deck.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1))
+            var t = deck[i]
+            deck[i] = deck[j]
+            deck[j] = t
+          }
+          this.cols = [[], [], [], [], [], [], [], [], [], []]
+          // 54 cards dealt: first 4 columns 6 cards, rest 5.
+          for (var c = 0; c < 10; c++) {
+            var n = c < 4 ? 6 : 5
+            for (var k = 0; k < n; k++) this.cols[c].push(deck.pop())
+          }
+          for (var c2 = 0; c2 < 10; c2++) this.cols[c2][this.cols[c2].length - 1].up = true
+          this.stock = deck // 50 cards = 5 deals of 10
+          this.completed = 0
+          this.sel = null
+          this.history = []
+          byId('win').classList.remove('show')
+          this.render()
+        },
+
+        snapshot: function () {
+          this.history.push(
+            JSON.stringify({ cols: this.cols, stock: this.stock, completed: this.completed }),
+          )
+          if (this.history.length > 200) this.history.shift()
+        },
+        undo: function () {
+          if (!this.history.length) return
+          var s = JSON.parse(this.history.pop())
+          this.cols = s.cols
+          this.stock = s.stock
+          this.completed = s.completed
+          this.sel = null
+          this.render()
+        },
+
+        // A run is movable if it is consecutive descending from the tapped card.
+        runFrom: function (c, idx) {
+          var col = this.cols[c]
+          if (!col[idx] || !col[idx].up) return null
+          for (var i = idx; i < col.length - 1; i++) {
+            if (col[i].r !== col[i + 1].r + 1) return null
+          }
+          return { c: c, idx: idx }
+        },
+        canDrop: function (destCol) {
+          var col = this.cols[destCol]
+          if (!col.length) return true
+          var top = col[col.length - 1]
+          if (!top.up) return false
+          var moving = this.cols[this.sel.c][this.sel.idx]
+          return top.r === moving.r + 1
+        },
+        move: function (destCol) {
+          this.snapshot()
+          var src = this.cols[this.sel.c]
+          var run = src.splice(this.sel.idx)
+          this.cols[destCol] = this.cols[destCol].concat(run)
+          if (src.length && !src[src.length - 1].up) src[src.length - 1].up = true
+          this.sel = null
+          this.checkComplete(destCol)
+          this.render()
+        },
+        checkComplete: function (c) {
+          var col = this.cols[c]
+          if (col.length < 13) return
+          for (var i = 0; i < 13; i++) {
+            var card = col[col.length - 13 + i]
+            if (!card.up || card.r !== 12 - i) return
+          }
+          col.splice(col.length - 13, 13)
+          if (col.length && !col[col.length - 1].up) col[col.length - 1].up = true
+          this.completed++
+          if (this.completed === 8)
+            setTimeout(function () {
+              byId('win').classList.add('show')
+            }, 200)
+        },
+        dealStock: function () {
+          if (!this.stock.length) return
+          // Spider rule: no empty column may exist when dealing.
+          for (var c = 0; c < 10; c++)
+            if (!this.cols[c].length) {
+              this.flash('Llená las columnas vacías primero')
+              return
+            }
+          this.snapshot()
+          for (var c2 = 0; c2 < 10; c2++) {
+            var card = this.stock.pop()
+            card.up = true
+            this.cols[c2].push(card)
+          }
+          for (var c3 = 0; c3 < 10; c3++) this.checkComplete(c3)
+          this.sel = null
+          this.render()
+        },
+        flash: function (msg) {
+          var s = byId('status')
+          s.textContent = msg
+          clearTimeout(this._ft)
+          this._ft = setTimeout(function () {
+            s.textContent = ''
+          }, 2500)
+        },
+
+        tapCard: function (c, idx) {
+          var card = this.cols[c][idx]
+          if (!card.up) return
+          if (this.sel && this.sel.c === c && this.sel.idx === idx) {
+            this.sel = null
+            this.render()
+            return
+          }
+          // If something is selected and this column's top can accept it, move.
+          if (this.sel && this.canDrop(c)) {
+            this.move(c)
+            return
+          }
+          var run = this.runFrom(c, idx)
+          if (run) {
+            this.sel = run
+            this.render()
+          }
+        },
+        tapColumn: function (c) {
+          if (this.sel && this.canDrop(c)) this.move(c)
+        },
+
+        render: function () {
+          var board = byId('board')
+          board.innerHTML = ''
+          for (var c = 0; c < 10; c++) {
+            var col = document.createElement('div')
+            col.className = 'col'
+            if (this.sel && this.canDrop(c)) col.classList.add('drop')
+            ;(function (self, c, colEl) {
+              colEl.addEventListener('click', function (e) {
+                if (e.target === colEl) self.tapColumn(c)
+              })
+            })(this, c, col)
+            for (var idx = 0; idx < this.cols[c].length; idx++) {
+              var card = this.cols[c][idx]
+              var el = document.createElement('div')
+              el.className = 'card' + (card.up ? '' : ' down')
+              if (this.sel && this.sel.c === c && idx >= this.sel.idx) el.classList.add('sel')
+              if (card.up) {
+                el.innerHTML =
+                  '<span class="rank">' +
+                  RANKS[card.r] +
+                  '</span><span class="suit">' +
+                  SUIT +
+                  '</span>'
+              }
+              ;(function (self, c, idx) {
+                el.addEventListener('click', function (e) {
+                  e.stopPropagation()
+                  self.tapCard(c, idx)
+                })
+              })(this, c, idx)
+              col.appendChild(el)
+            }
+            board.appendChild(col)
+          }
+          // stock
+          var stock = byId('stock')
+          stock.innerHTML = ''
+          var deals = Math.floor(this.stock.length / 10)
+          for (var s = 0; s < deals; s++) {
+            var p = document.createElement('div')
+            p.className = 'pip'
+            stock.appendChild(p)
+          }
+          stock.className = deals ? '' : 'disabled'
+          // completed runs
+          var done = byId('done')
+          done.innerHTML = ''
+          for (var w = 0; w < this.completed; w++) {
+            var r = document.createElement('div')
+            r.className = 'run'
+            r.textContent = 'K'
+            done.appendChild(r)
+          }
+          byId('undo').disabled = !this.history.length
+        },
+      }
+
+      byId('new').addEventListener('click', function () {
+        game.deal()
+      })
+      byId('undo').addEventListener('click', function () {
+        game.undo()
+      })
+      byId('stock').addEventListener('click', function () {
+        game.dealStock()
+      })
+      game.deal()
+    </script>
+  </body>
+</html>

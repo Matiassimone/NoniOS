@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 
-import { AppWindow, Globe } from 'lucide-react'
+import { AppWindow, Gamepad2, Globe } from 'lucide-react'
 
 import { NoniButton } from '@/components/NoniButton'
 import { NoniField } from '@/components/NoniField'
@@ -65,6 +65,19 @@ export function AddTileModal({
     close()
   }
 
+  const addSpider = () => {
+    onAdd({
+      id: 'game-spider',
+      name: t('admin.tiles.game.spider'),
+      kind: TileKind.WEB,
+      icon: 'heart',
+      target: 'spider',
+      targetKind: TargetKind.BUILTIN,
+      focusVideo: false,
+    })
+    close()
+  }
+
   const canAddWeb = url.trim().length > 0 && label.trim().length > 0
   const addWeb = () => {
     if (!canAddWeb) return
@@ -124,6 +137,12 @@ export function AddTileModal({
             title={t('admin.tiles.addModal.webTitle')}
             body={t('admin.tiles.addModal.webBody')}
             onClick={() => setStep(Step.WEB)}
+          />
+          <TypeCard
+            icon={<Gamepad2 />}
+            title={t('admin.tiles.addModal.gameTitle')}
+            body={t('admin.tiles.addModal.gameBody')}
+            onClick={addSpider}
           />
         </div>
       )}

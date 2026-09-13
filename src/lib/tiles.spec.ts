@@ -4,7 +4,7 @@ import { DEFAULT_CONFIG } from '@/lib/config'
 
 import { moveTile, normaliseUrl, tileMeta } from './tiles'
 
-const LABELS = { app: 'App', web: 'Web', notDetected: 'not detected' }
+const LABELS = { app: 'App', web: 'Web', notDetected: 'not detected', game: 'Game' }
 
 describe('moveTile', () => {
   const [netflix, telefe] = DEFAULT_CONFIG.tiles
@@ -20,6 +20,15 @@ describe('tileMeta', () => {
     expect(tileMeta(DEFAULT_CONFIG.tiles[1], LABELS)).toBe('Web · www.mitelefe.com')
     expect(tileMeta(DEFAULT_CONFIG.tiles[0], LABELS)).toBe('App · not detected')
     expect(tileMeta({ ...DEFAULT_CONFIG.tiles[0], target: 'x!App' }, LABELS)).toBe('App · x!App')
+  })
+  it('labels a builtin game by its name', () => {
+    const spider = {
+      ...DEFAULT_CONFIG.tiles[1],
+      name: 'Solitario',
+      target: 'spider',
+      targetKind: 'builtin' as const,
+    }
+    expect(tileMeta(spider, LABELS)).toBe('Game · Solitario')
   })
 })
 

@@ -62,6 +62,7 @@ export function TilesSection() {
     app: t('admin.tiles.metaApp'),
     web: t('admin.tiles.metaWeb'),
     notDetected: t('admin.tiles.notDetected'),
+    game: t('admin.tiles.metaGame'),
   }
 
   return (

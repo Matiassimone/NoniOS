@@ -10,7 +10,13 @@ export function moveTile(tiles: Tile[], index: number, direction: -1 | 1): Tile[
 }
 
 /** `App · Netflix` / `Web · mitelefe.com` — the mono meta line under a tile name. */
-export function tileMeta(tile: Tile, labels: { app: string; web: string; notDetected: string }) {
+export function tileMeta(
+  tile: Tile,
+  labels: { app: string; web: string; notDetected: string; game: string },
+) {
+  if (tile.targetKind === 'builtin') {
+    return `${labels.game} · ${tile.name}`
+  }
   if (tile.kind === TileKind.WEB) {
     let host = tile.target
     try {

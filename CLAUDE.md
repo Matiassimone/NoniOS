@@ -258,7 +258,7 @@ Local config, one JSON file per install, no cloud, no cross-install data:
 ```
 
 - `kind: "app"` → resolved via `targetKind: "aumid"` (Store apps, preferred — see Netflix notes) or `targetKind: "exe"` (classic desktop apps, resolved as a full path via `installed_apps.rs`). Both support "re-detect."
-- `kind: "web"` → `targetKind` is always `"url"`; opened in the embedded webview, same mechanism as Telefe.
+- `kind: "web"` → `targetKind` is `"url"` (a site, opened in the embedded webview like Telefe) or `"builtin"` (a page/game bundled with NoniOS under `public/games/`, served from the app itself — offline, no ads, no install; `target` is the game id, e.g. `spider`). Spider Solitaire (one suit, tap-to-move, large cards) is the first builtin; added from Admin → Tiles → "Un juego". Decided 2026-09-13 as the third launch target because restoring the classic Windows game means untrusted third-party binaries and the Store version is ad-heavy.
 - `icon` is either a key into the bundled icon glyph library (see below) or a reference to a user-uploaded image stored in the Tauri app data directory — never bundled in the repo, never a remote URL.
 - Array order in `tiles` **is** the grid order shown on Home.
 - `weather.lat`/`lon` are resolved once from the city search in Admin and cached — the Open-Meteo call at runtime uses coordinates, not a re-geocoded city string, so it doesn't depend on an external geocoding service being up every time Home loads.
