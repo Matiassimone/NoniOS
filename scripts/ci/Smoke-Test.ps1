@@ -208,6 +208,7 @@ public static class NoniKbd {
     Check 'configure-autologon exit code 0' ($code -eq 0) "exit $code"
     $props = Get-ItemProperty $winlogon
     Check 'AutoAdminLogon = 1' ($props.AutoAdminLogon -eq '1')
+    Check 'ForceAutoLogon = 1' ($props.ForceAutoLogon -eq '1')
     Check "DefaultUserName = $env:USERNAME" ($props.DefaultUserName -eq $env:USERNAME)
     $passwordless = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\PasswordLess\Device' -ErrorAction SilentlyContinue
     Check 'DevicePasswordLessBuildVersion = 0 (Windows Hello requirement off)' ($passwordless.DevicePasswordLessBuildVersion -eq 0)

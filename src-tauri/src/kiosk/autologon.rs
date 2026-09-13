@@ -13,6 +13,8 @@
 //!     silently ignores AutoAdminLogon while this is 2 (its default on a
 //!     Microsoft-account machine) — the classic "autologon is configured but
 //!     the lock screen still appears" failure.
+//!   * `ForceAutoLogon=1` so autologon is re-applied after a sign-out/lock, not
+//!     only at first boot (standard kiosk behaviour).
 //!   * The PASSWORD is stored as the LSA secret `DefaultPassword` via
 //!     `LsaStorePrivateData` — the same mechanism Sysinternals Autologon uses.
 //!     It is NEVER written to the registry (which would be plaintext), never
@@ -174,6 +176,9 @@ mod imp {
         // in place by `disable`: it only re-enables a Settings checkbox.
         set_reg_dword(PASSWORDLESS_KEY, "DevicePasswordLessBuildVersion", 0)?;
         set_reg_sz("AutoAdminLogon", "1")?;
+        // Re-apply autologon even after an interactive sign-out or lock, so the
+        // kiosk always comes back on its own — standard for unattended kiosks.
+        set_reg_sz("ForceAutoLogon", "1")?;
         set_reg_sz("DefaultUserName", username)?;
         set_reg_sz("DefaultDomainName", domain)?;
         store_password_secret(Some(password))
@@ -181,6 +186,7 @@ mod imp {
 
     pub fn disable() -> Result<(), AutologonError> {
         set_reg_sz("AutoAdminLogon", "0")?;
+        set_reg_sz("ForceAutoLogon", "0")?;
         store_password_secret(None)
     }
 }
