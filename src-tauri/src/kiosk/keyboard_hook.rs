@@ -151,14 +151,12 @@ fn track_modifier(vk: u32, is_down: bool) {
     }
 }
 
-/// Returns true only for the specific combinations NoniOS blocks, using the
-/// self-tracked modifier state.
-fn should_block(vk: u32) -> bool {
+/// Pure block decision, given the modifier state. Unit-tested; the hook proc
+/// calls [`should_block`], which reads the self-tracked atomics.
+fn should_block_with(vk: u32, ctrl: bool, alt: bool) -> bool {
     if vk == VK_LWIN.0 as u32 || vk == VK_RWIN.0 as u32 {
         return true;
     }
-    let alt = ALT_DOWN.load(Ordering::Relaxed);
-    let ctrl = CTRL_DOWN.load(Ordering::Relaxed);
     if alt && (vk == VK_TAB.0 as u32 || vk == VK_F4.0 as u32 || vk == VK_ESCAPE.0 as u32) {
         return true;
     }
@@ -166,6 +164,15 @@ fn should_block(vk: u32) -> bool {
         return true;
     }
     false
+}
+
+/// Block decision using the self-tracked Ctrl/Alt state.
+fn should_block(vk: u32) -> bool {
+    should_block_with(
+        vk,
+        CTRL_DOWN.load(Ordering::Relaxed),
+        ALT_DOWN.load(Ordering::Relaxed),
+    )
 }
 
 /// The hook procedure. Returning `LRESULT(1)` swallows the keystroke; anything
@@ -190,4 +197,43 @@ unsafe extern "system" fn low_level_keyboard_proc(
         }
     }
     CallNextHookEx(None, code, wparam, lparam)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_block_with;
+    use windows::Win32::UI::Input::KeyboardAndMouse::{
+        VK_A, VK_ESCAPE, VK_F4, VK_LWIN, VK_RWIN, VK_TAB,
+    };
+
+    fn vk(k: windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY) -> u32 {
+        k.0 as u32
+    }
+
+    #[test]
+    fn blocks_the_windows_keys_regardless_of_modifiers() {
+        assert!(should_block_with(vk(VK_LWIN), false, false));
+        assert!(should_block_with(vk(VK_RWIN), true, true));
+    }
+
+    #[test]
+    fn blocks_alt_combinations_only_with_alt_down() {
+        assert!(should_block_with(vk(VK_TAB), false, true));
+        assert!(should_block_with(vk(VK_F4), false, true));
+        assert!(should_block_with(vk(VK_ESCAPE), false, true)); // Alt+Esc
+        assert!(!should_block_with(vk(VK_TAB), false, false));
+        assert!(!should_block_with(vk(VK_F4), true, false));
+    }
+
+    #[test]
+    fn blocks_ctrl_esc_only_with_ctrl_down() {
+        assert!(should_block_with(vk(VK_ESCAPE), true, false)); // Ctrl+Esc
+        assert!(!should_block_with(vk(VK_ESCAPE), false, false)); // bare Esc passes
+    }
+
+    #[test]
+    fn lets_ordinary_keys_through() {
+        assert!(!should_block_with(vk(VK_A), true, true));
+        assert!(!should_block_with(vk(VK_F4), false, false)); // bare F4 = Admin hotkey
+    }
 }
