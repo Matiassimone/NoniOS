@@ -181,13 +181,14 @@ else {
     try {
         $plain = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr)
 
-        # A blank-password account is the usual state of a fresh PC, and Windows
-        # blocks autologon (and any credential use) for blank passwords by
-        # default. Allow it so the kiosk account can auto-log-in without a
-        # password. If the account HAS a password this is a no-op.
+        # A blank-password account is the usual state of a fresh PC. That is
+        # fine: Windows allows blank-password accounts to log on AT THE CONSOLE
+        # (which is what autologon is) even with the default, secure
+        # LimitBlankPasswordUse=1 — so we deliberately do NOT weaken it. Doing so
+        # would only enable blank-password NETWORK/remote logons, a real risk on
+        # a machine that also runs AnyDesk.
         if ([string]::IsNullOrEmpty($plain)) {
-            Write-Host "No password entered - enabling blank-password autologon (LimitBlankPasswordUse=0)."
-            Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Lsa' -Name 'LimitBlankPasswordUse' -Value 0 -Type DWord
+            Write-Host "No password entered - configuring console autologon for the blank-password account."
         }
 
         # NoniOS.exe is a GUI-subsystem binary; `$plain | & exe` would not reliably
