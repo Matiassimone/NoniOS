@@ -70,9 +70,15 @@ try {
     # ---- 1. Startup + lockdown --------------------------------------------
     Write-Host "== 1. start NoniOS.exe and read $noniosLog"
     Start-Process -FilePath $nonios -WorkingDirectory $InstallDir | Out-Null
-    Start-Sleep -Seconds $StartupWaitSeconds
     Check 'process is alive after startup' ([bool](Get-NoniosProcess))
-    $log = if (Test-Path $noniosLog) { Get-Content $noniosLog -Raw } else { '' }
+    # Poll for the startup line rather than a fixed wait: WebView2 cold start on a
+    # CI runner can take well over 10s, and a fixed sleep made this flaky.
+    $log = ''
+    for ($i = 0; $i -lt 40; $i++) {
+        Start-Sleep -Seconds 1
+        $log = if (Test-Path $noniosLog) { Get-Content $noniosLog -Raw } else { '' }
+        if ($log -match 'F4 admin hotkey registered') { break }
+    }
     Write-Host $log
     Check 'log has "NoniOS starting"' ($log -match 'NoniOS starting')
     Check 'log has "kiosk lockdown engaged"' ($log -match 'kiosk lockdown engaged') 'keyboard hook or taskbar failed — see log'
