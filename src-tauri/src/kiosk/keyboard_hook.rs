@@ -21,7 +21,7 @@
 //! hook whose proc runs longer than `LowLevelHooksTimeout` (~300 ms), so it does
 //! no allocation, locking, or anything that can block or panic.
 
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc;
 use std::thread;
 
@@ -29,12 +29,13 @@ use windows::Win32::Foundation::{HINSTANCE, LPARAM, LRESULT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::Threading::GetCurrentThreadId;
 use windows::Win32::UI::Input::KeyboardAndMouse::{
-    GetAsyncKeyState, VK_CONTROL, VK_ESCAPE, VK_F4, VK_LWIN, VK_RWIN, VK_TAB,
+    VK_CONTROL, VK_ESCAPE, VK_F4, VK_LCONTROL, VK_LMENU, VK_LWIN, VK_MENU, VK_RCONTROL, VK_RMENU,
+    VK_RWIN, VK_TAB,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, DispatchMessageW, GetMessageW, PostThreadMessageW, SetWindowsHookExW,
-    TranslateMessage, UnhookWindowsHookEx, HC_ACTION, KBDLLHOOKSTRUCT, LLKHF_ALTDOWN, MSG,
-    WH_KEYBOARD_LL, WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
+    TranslateMessage, UnhookWindowsHookEx, HC_ACTION, KBDLLHOOKSTRUCT, MSG, WH_KEYBOARD_LL,
+    WM_KEYDOWN, WM_KEYUP, WM_QUIT, WM_SYSKEYDOWN, WM_SYSKEYUP,
 };
 
 use super::KioskError;
@@ -51,6 +52,13 @@ static BLOCKED: AtomicU32 = AtomicU32::new(0);
 pub fn blocked_count() -> u32 {
     BLOCKED.load(Ordering::Relaxed)
 }
+
+/// Ctrl / Alt state tracked from the hook stream itself, updated on every key
+/// event the hook sees. More reliable than `GetAsyncKeyState` or the
+/// `LLKHF_ALTDOWN` flag, which are inconsistent for injected input and across
+/// sessions — a kiosk lock must not depend on either.
+static CTRL_DOWN: AtomicBool = AtomicBool::new(false);
+static ALT_DOWN: AtomicBool = AtomicBool::new(false);
 
 /// Installs the global low-level keyboard hook on a dedicated thread and blocks
 /// until that thread reports whether installation succeeded.
@@ -126,24 +134,35 @@ fn hook_thread_main(report: mpsc::Sender<Result<(), String>>) {
     }
 }
 
-/// Returns true only for the specific combinations NoniOS blocks.
-fn should_block(vk: u32, alt_down: bool) -> bool {
+/// Updates [`CTRL_DOWN`]/[`ALT_DOWN`] when the event is a modifier key. Returns
+/// whether the key was a modifier (those are never blocked themselves).
+fn track_modifier(vk: u32, is_down: bool) {
+    let ctrl =
+        vk == VK_CONTROL.0 as u32 || vk == VK_LCONTROL.0 as u32 || vk == VK_RCONTROL.0 as u32;
+    let alt = vk == VK_MENU.0 as u32 || vk == VK_LMENU.0 as u32 || vk == VK_RMENU.0 as u32;
+    if ctrl {
+        CTRL_DOWN.store(is_down, Ordering::Relaxed);
+    }
+    if alt {
+        ALT_DOWN.store(is_down, Ordering::Relaxed);
+    }
+}
+
+/// Returns true only for the specific combinations NoniOS blocks, using the
+/// self-tracked modifier state.
+fn should_block(vk: u32) -> bool {
     if vk == VK_LWIN.0 as u32 || vk == VK_RWIN.0 as u32 {
         return true;
     }
-    if alt_down && (vk == VK_TAB.0 as u32 || vk == VK_F4.0 as u32 || vk == VK_ESCAPE.0 as u32) {
+    let alt = ALT_DOWN.load(Ordering::Relaxed);
+    let ctrl = CTRL_DOWN.load(Ordering::Relaxed);
+    if alt && (vk == VK_TAB.0 as u32 || vk == VK_F4.0 as u32 || vk == VK_ESCAPE.0 as u32) {
         return true;
     }
-    if vk == VK_ESCAPE.0 as u32 && ctrl_down() {
+    if ctrl && vk == VK_ESCAPE.0 as u32 {
         return true;
     }
     false
-}
-
-fn ctrl_down() -> bool {
-    // SAFETY: GetAsyncKeyState reads global key state; always safe to call. The
-    // high bit means the key is currently down.
-    unsafe { (GetAsyncKeyState(VK_CONTROL.0 as i32) as u16 & 0x8000) != 0 }
 }
 
 /// The hook procedure. Returning `LRESULT(1)` swallows the keystroke; anything
@@ -159,8 +178,9 @@ unsafe extern "system" fn low_level_keyboard_proc(
         let is_key = matches!(message, WM_KEYDOWN | WM_SYSKEYDOWN | WM_KEYUP | WM_SYSKEYUP);
         if is_key {
             let event = &*(lparam.0 as *const KBDLLHOOKSTRUCT);
-            let alt_down = (event.flags.0 & LLKHF_ALTDOWN.0) != 0;
-            if should_block(event.vkCode, alt_down) {
+            let is_down = matches!(message, WM_KEYDOWN | WM_SYSKEYDOWN);
+            track_modifier(event.vkCode, is_down);
+            if should_block(event.vkCode) {
                 BLOCKED.fetch_add(1, Ordering::Relaxed);
                 return LRESULT(1);
             }
